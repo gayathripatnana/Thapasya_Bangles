@@ -1,0 +1,8 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.nav-btn {
+  @apply px-4 py-2 rounded-lg transition-colors hover:bg-white/10;
+}
