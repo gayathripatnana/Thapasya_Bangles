@@ -124,7 +124,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
               </div>
               <button
                 onClick={() => setShowForm(true)}
-                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center space-x-2"
+                className="bg-gradient-to-r from-yellow-500 to-gray-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center space-x-2"
               >
                 <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Add Product</span>
@@ -194,7 +194,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                   placeholder="Search products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 />
               </div>
             </div>
@@ -208,7 +208,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                 <Filter className="w-4 h-4" />
                 <span className="text-sm font-medium">Filters</span>
                 {(selectedCategory !== 'All' || stockFilter !== 'All') && (
-                  <span className="bg-pink-500 text-white text-xs px-2 py-1 rounded-full">•</span>
+                  <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">•</span>
                 )}
               </button>
               
@@ -226,7 +226,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                     <select
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                     >
                       {categoryOptions.map(category => (
                         <option key={category} value={category}>{category}</option>
@@ -239,7 +239,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                     <select
                       value={stockFilter}
                       onChange={(e) => setStockFilter(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                     >
                       <option value="All">All Products</option>
                       <option value="In Stock">In Stock</option>
@@ -267,14 +267,14 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                     placeholder="Search products..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                   />
                 </div>
 
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 >
                   {categoryOptions.map(category => (
                     <option key={category} value={category}>{category}</option>
@@ -284,7 +284,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                 <select
                   value={stockFilter}
                   onChange={(e) => setStockFilter(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 >
                   <option value="All">All Products</option>
                   <option value="In Stock">In Stock</option>
@@ -297,7 +297,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                   </span>
                   <button
                     onClick={clearAllFilters}
-                    className="text-pink-600 hover:text-pink-700 font-medium text-sm"
+                    className="text-yellow-600 hover:text-yellow-700 font-medium text-sm"
                   >
                     Clear Filters
                   </button>
@@ -322,7 +322,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                 </p>
                 <button
                   onClick={() => setShowForm(true)}
-                  className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                 >
                   Add Your First Product
                 </button>
@@ -398,10 +398,10 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
 
             {/* Summary Stats */}
             {filteredProducts.length > 0 && (
-              <div className="mt-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 sm:p-6">
+              <div className="mt-6 bg-gradient-to-r from-yellow-50 to-gray-50 rounded-lg p-4 sm:p-6">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                   <div>
-                    <div className="text-lg sm:text-2xl font-bold text-pink-600">{filteredProducts.length}</div>
+                    <div className="text-lg sm:text-2xl font-bold text-yellow-600">{filteredProducts.length}</div>
                     <div className="text-xs sm:text-sm text-gray-600">Products</div>
                   </div>
                   <div>
@@ -411,7 +411,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                     <div className="text-xs sm:text-sm text-gray-600">In Stock</div>
                   </div>
                   <div>
-                    <div className="text-lg sm:text-2xl font-bold text-purple-600">
+                    <div className="text-lg sm:text-2xl font-bold text-gray-600">
                       ₹{Math.min(...filteredProducts.map(p => p.price)).toLocaleString()}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-600">Lowest Price</div>

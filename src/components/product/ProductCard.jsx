@@ -79,13 +79,12 @@ const ProductCard = ({
           <button 
             className={`action-button absolute top-2 right-2 p-2 rounded-full shadow-md transition-all duration-300 ${
               productInWishlist 
-                ? 'bg-pink-500 text-white scale-110' 
+                ? 'bg-white text-yellow-500 scale-110' 
                 : 'bg-white text-gray-600 hover:bg-gray-50'
             }`}
             onClick={handleWishlistClick}
-            aria-label={productInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
           >
-            <Heart className={`w-4 h-4 ${productInWishlist ? 'fill-current' : ''}`} />
+            <Heart className={`w-4 h-4 ${productInWishlist ? 'fill-current text-yellow-500' : ''}`} />
           </button>
         )}
         
@@ -148,7 +147,7 @@ const ProductCard = ({
 
         <div className="flex items-center justify-between mb-3">
           <div>
-            <span className="text-lg sm:text-xl font-bold text-pink-600">₹{product.price.toLocaleString()}</span>
+            <span className="text-lg sm:text-xl font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
             <span className="text-gray-500 text-xs sm:text-sm line-through ml-2">₹{(product.price * 1.2).toLocaleString()}</span>
           </div>
           
@@ -158,7 +157,7 @@ const ProductCard = ({
               className={`action-button p-2 rounded-full transition-all duration-300 ${
                 productInCart 
                   ? 'bg-green-500 text-white' 
-                  : 'bg-pink-500 text-white hover:bg-pink-600'
+                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
               aria-label={productInCart ? 'In cart' : 'Add to cart'}
             >
@@ -174,9 +173,7 @@ const ProductCard = ({
               <button
                 onClick={handleCartClick}
                 className={`action-button w-full py-2 px-4 rounded-lg font-medium transition-all duration-300 flex items-center justify-center text-sm ${
-                  productInCart 
-                    ? 'bg-green-500 text-white' 
-                    : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                  productInCart ? 'bg-green-500 text-white' : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
                 }`}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />

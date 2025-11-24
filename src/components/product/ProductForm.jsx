@@ -147,7 +147,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                 errors.name 
                   ? 'border-red-500 focus:ring-red-500' 
-                  : 'border-gray-300 focus:ring-pink-500'
+                  : 'border-gray-300 focus:ring-yellow-500'
               }`}
               placeholder="Enter product name"
               disabled={isSubmitting}
@@ -174,7 +174,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                 errors.price 
                   ? 'border-red-500 focus:ring-red-500' 
-                  : 'border-gray-300 focus:ring-pink-500'
+                  : 'border-gray-300 focus:ring-yellow-500'
               }`}
               placeholder="0.00"
               disabled={isSubmitting}
@@ -195,7 +195,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                 errors.category 
                   ? 'border-red-500 focus:ring-red-500' 
-                  : 'border-gray-300 focus:ring-pink-500'
+                  : 'border-gray-300 focus:ring-yellow-500'
               }`}
               disabled={isSubmitting}
             >
@@ -224,7 +224,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                 className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                   errors.image 
                     ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-gray-300 focus:ring-pink-500'
+                    : 'border-gray-300 focus:ring-yellow-500'
                 }`}
                 placeholder="https://drive.google.com/file/d/..."
                 disabled={isSubmitting}
@@ -251,7 +251,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                 step="0.1"
                 value={formData.rating}
                 onChange={(e) => handleInputChange('rating', e.target.value)}
-                className="w-20 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-20 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 disabled={isSubmitting}
               />
               <div className="flex text-yellow-400">
@@ -282,7 +282,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                   name="inStock"
                   checked={formData.inStock === true}
                   onChange={() => handleInputChange('inStock', true)}
-                  className="w-4 h-4 text-pink-600 border-gray-300 focus:ring-pink-500"
+                  className="w-4 h-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
                   disabled={isSubmitting}
                 />
                 <span className="ml-2 text-sm text-gray-700">In Stock</span>
@@ -293,7 +293,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                   name="inStock"
                   checked={formData.inStock === false}
                   onChange={() => handleInputChange('inStock', false)}
-                  className="w-4 h-4 text-pink-600 border-gray-300 focus:ring-pink-500"
+                  className="w-4 h-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
                   disabled={isSubmitting}
                 />
                 <span className="ml-2 text-sm text-gray-700">Out of Stock</span>
@@ -314,7 +314,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors resize-none ${
               errors.description 
                 ? 'border-red-500 focus:ring-red-500' 
-                : 'border-gray-300 focus:ring-pink-500'
+                : 'border-gray-300 focus:ring-yellow-500'
             }`}
             placeholder="Enter detailed product description..."
             disabled={isSubmitting}
@@ -374,7 +374,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             className={`px-8 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center space-x-2 ${
               isSubmitting
                 ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:shadow-lg transform hover:-translate-y-1'
+                : 'bg-gradient-to-r from-yellow-500 to-gray-600 text-white hover:shadow-lg transform hover:-translate-y-1'
             }`}
           >
             {isSubmitting ? (

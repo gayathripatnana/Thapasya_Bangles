@@ -145,14 +145,14 @@ const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
                     placeholder="Search orders, customers..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                   />
                 </div>
 
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 >
                   {statuses.map(status => (
                     <option key={status} value={status}>{status}</option>
@@ -168,7 +168,7 @@ const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
                       setSearchTerm('');
                       setSelectedStatus('All');
                     }}
-                    className="text-pink-600 hover:text-pink-700 font-medium"
+                    className="text-yellow-600 hover:text-yellow-700 font-medium"
                   >
                     Clear Filters
                   </button>
@@ -230,7 +230,7 @@ const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
                             <select
                               value={order.status}
                               onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                              className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)} focus:outline-none focus:ring-2 focus:ring-pink-500`}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)} focus:outline-none focus:ring-2 focus:ring-yellow-500`}
                             >
                               <option value="Processing">Processing</option>
                               <option value="Shipped">Shipped</option>

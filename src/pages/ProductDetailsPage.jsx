@@ -47,7 +47,7 @@ const ProductDetailsPage = ({
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Product not found</h2>
           <button
             onClick={onBack}
-            className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
           >
             Go Back
           </button>
@@ -189,7 +189,7 @@ Please confirm availability and share payment details. Thank you!`;
                 onClick={() => onAddToWishlist && onAddToWishlist(product)}
                 className={`absolute top-4 right-4 p-3 rounded-full shadow-lg transition-all duration-300 ${
                   productInWishlist 
-                    ? 'bg-pink-500 text-white scale-110' 
+                    ? 'bg-yellow-500 text-white scale-110' 
                     : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
                 aria-label={productInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
@@ -206,7 +206,7 @@ Please confirm availability and share payment details. Thank you!`;
                   onClick={() => setSelectedImage(index)}
                   className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                     selectedImage === index 
-                      ? 'border-pink-500 ring-2 ring-pink-200' 
+                      ? 'border-yellow-500 ring-2 ring-yellow-200' 
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -246,7 +246,7 @@ Please confirm availability and share payment details. Thank you!`;
 
               {/* Price */}
               <div className="flex items-center space-x-3 mb-6">
-                <span className="text-3xl font-bold text-pink-600">₹{product.price.toLocaleString()}</span>
+                <span className="text-3xl font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
                 <span className="text-xl text-gray-500 line-through">₹{originalPrice.toLocaleString()}</span>
                 <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
                   {discountPercentage}% OFF
@@ -302,7 +302,7 @@ Please confirm availability and share payment details. Thank you!`;
                     className={`w-full py-4 px-6 rounded-lg font-semibold transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 ${
                       productInCart 
                         ? 'bg-green-500 text-white cursor-default'
-                        : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700'
+                        : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-purple-700'
                     }`}
                     disabled={productInCart}
                   >
@@ -356,7 +356,7 @@ Please confirm availability and share payment details. Thank you!`;
               </div>
               <button
                 onClick={() => setShowFullDescription(!showFullDescription)}
-                className="text-pink-600 hover:text-pink-700 font-medium text-sm mt-2"
+                className="text-yellow-600 hover:text-yellow-700 font-medium text-sm mt-2"
               >
                 {showFullDescription ? 'Show Less' : 'Read More'}
               </button>
@@ -407,7 +407,7 @@ Please confirm availability and share payment details. Thank you!`;
                       {relatedProduct.name}
                     </h3>
                     <div className="flex items-center justify-between">
-                      <span className="text-pink-600 font-bold text-sm sm:text-base">
+                      <span className="text-yellow-600 font-bold text-sm sm:text-base">
                         ₹{relatedProduct.price.toLocaleString()}
                       </span>
                       <div className="flex items-center">

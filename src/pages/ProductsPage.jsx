@@ -111,7 +111,7 @@ const categoryOptions = [
               placeholder="Search products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -125,7 +125,7 @@ const categoryOptions = [
             <SlidersHorizontal className="w-4 h-4" />
             <span className="text-sm font-medium">Filters</span>
             {(selectedCategory !== 'all' || priceRange !== 'all' || sortBy !== 'name') && (
-              <span className="bg-pink-500 text-white text-xs px-2 py-1 rounded-full">•</span>
+              <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">•</span>
             )}
           </button>
           
@@ -144,7 +144,7 @@ const categoryOptions = [
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                 >
                   {categoryOptions.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.title}</option>
@@ -158,7 +158,7 @@ const categoryOptions = [
                 <select
                   value={priceRange}
                   onChange={(e) => setPriceRange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                 >
                   <option value="all">All Prices</option>
                   <option value="under-500">Under ₹500</option>
@@ -174,7 +174,7 @@ const categoryOptions = [
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                 >
                   <option value="name">Name (A-Z)</option>
                   <option value="price-low">Price: Low to High</option>
@@ -206,7 +206,7 @@ const categoryOptions = [
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               />
             </div>
             
@@ -215,7 +215,7 @@ const categoryOptions = [
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               >
                 {categoryOptions.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.title}</option>
@@ -228,7 +228,7 @@ const categoryOptions = [
               <select
                 value={priceRange}
                 onChange={(e) => setPriceRange(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               >
                 <option value="all">All Prices</option>
                 <option value="under-500">Under ₹500</option>
@@ -243,7 +243,7 @@ const categoryOptions = [
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               >
                 <option value="name">Sort by Name</option>
                 <option value="price-low">Price: Low to High</option>
@@ -263,7 +263,7 @@ const categoryOptions = [
               {(selectedCategory !== 'all' || priceRange !== 'all' || sortBy !== 'name') && (
                 <button
                   onClick={clearAllFilters}
-                  className="text-pink-600 hover:text-pink-700 font-medium text-sm"
+                  className="text-yellow-600 hover:text-yellow-700 font-medium text-sm"
                 >
                   Clear Filters
                 </button>
@@ -286,7 +286,7 @@ const categoryOptions = [
             <p className="text-gray-500 mb-6 px-4">Try adjusting your search or filter criteria</p>
             <button
               onClick={clearAllFilters}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
               Clear All Filters
             </button>
@@ -313,7 +313,7 @@ const categoryOptions = [
         {/* Load More Button */}
         {filteredProducts.length > 0 && filteredProducts.length >= 12 && (
           <div className="text-center mt-8 sm:mt-12">
-            <button className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 sm:px-8 py-3 rounded-lg font-medium hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
+            <button className="bg-gradient-to-r from-yellow-500 to-gray-600 text-white px-6 sm:px-8 py-3 rounded-lg font-medium hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
               Load More Products
             </button>
           </div>
@@ -321,14 +321,14 @@ const categoryOptions = [
 
         {/* Quick Stats */}
         {filteredProducts.length > 0 && (
-          <div className="mt-8 sm:mt-12 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 sm:p-6">
+          <div className="mt-8 sm:mt-12 bg-gradient-to-r from-yellow-50 to-gray-50 rounded-lg p-4 sm:p-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div>
-                <div className="text-lg sm:text-2xl font-bold text-pink-600">{filteredProducts.length}</div>
+                <div className="text-lg sm:text-2xl font-bold text-yellow-600">{filteredProducts.length}</div>
                 <div className="text-xs sm:text-sm text-gray-600">Products</div>
               </div>
               <div>
-                <div className="text-lg sm:text-2xl font-bold text-purple-600">
+                <div className="text-lg sm:text-2xl font-bold text-gray-600">
                   ₹{Math.min(...filteredProducts.map(p => p.price)).toLocaleString()}
                 </div>
                 <div className="text-xs sm:text-sm text-gray-600">Starting Price</div>

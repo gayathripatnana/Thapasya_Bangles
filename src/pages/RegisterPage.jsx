@@ -83,11 +83,11 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-100 via-gray-50 to-indigo-100 flex items-center justify-center py-12 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-pink-500 to-purple-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-gradient-to-r from-yellow-500 to-gray-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserPlus className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800">Create Account</h2>
@@ -107,7 +107,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 transition-colors"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
                 placeholder="Enter your full name"
                 required
                 disabled={isLoading}
@@ -126,7 +126,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 transition-colors"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
                 placeholder="Enter your email"
                 required
                 disabled={isLoading}
@@ -145,7 +145,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 transition-colors"
+                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
                 placeholder="Create a password (min. 6 characters)"
                 required
                 disabled={isLoading}
@@ -176,7 +176,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
                 className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                   error && formData.password !== formData.confirmPassword
                     ? 'border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:ring-pink-500'
+                    : 'border-gray-300 focus:ring-yellow-500'
                 }`}
                 placeholder="Confirm your password"
                 required
@@ -208,7 +208,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
             className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
               isLoading || !formData.name || !formData.email || !formData.password || !formData.confirmPassword
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:shadow-lg transform hover:-translate-y-1'
+                : 'bg-gradient-to-r from-yellow-500 to-gray-600 text-white hover:shadow-lg transform hover:-translate-y-1'
             }`}
           >
             {isLoading ? (
@@ -250,7 +250,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
             Already have an account?{' '}
             <button
               onClick={onSwitchToLogin}
-              className="text-pink-600 hover:text-pink-700 font-semibold"
+              className="text-yellow-600 hover:text-yellow-700 font-semibold"
               disabled={isLoading}
             >
               Sign in

@@ -51,7 +51,7 @@ const WishlistPage = ({
             <p className="text-gray-600 mb-8 px-4">Save items you love by clicking the heart icon</p>
             <button
               onClick={onBack}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-6 sm:px-8 py-3 rounded-lg font-medium transition-colors"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 sm:px-8 py-3 rounded-lg font-medium transition-colors"
             >
               Start Shopping
             </button>
@@ -75,7 +75,7 @@ const WishlistPage = ({
         <div className="flex items-center justify-between mb-6 sm:mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center space-x-3">
-              <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-pink-500 fill-current" />
+              <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 fill-current" />
               <span>My Wishlist</span>
             </h1>
             <p className="text-gray-600 mt-2">{wishlistItems.length} item{wishlistItems.length !== 1 ? 's' : ''} saved for later</p>
@@ -115,7 +115,7 @@ const WishlistPage = ({
                   className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors group"
                   aria-label="Remove from wishlist"
                 >
-                  <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-pink-500 fill-current group-hover:text-red-500" />
+                  <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 fill-current group-hover:text-red-500" />
                 </button>
 
                 {/* Stock Status */}
@@ -133,7 +133,7 @@ const WishlistPage = ({
               <div className="p-3 sm:p-4">
                 <div className="mb-3">
                   <h3 
-                    className="font-semibold text-gray-800 text-sm sm:text-lg mb-1 line-clamp-2 cursor-pointer hover:text-pink-600 transition-colors"
+                    className="font-semibold text-gray-800 text-sm sm:text-lg mb-1 line-clamp-2 cursor-pointer hover:text-yellow-600 transition-colors"
                     onClick={() => onProductClick && onProductClick(item.id)}
                   >
                     {item.name}
@@ -157,7 +157,7 @@ const WishlistPage = ({
 
                 <div className="mb-4">
                   <div className="flex items-center space-x-2">
-                    <span className="text-lg sm:text-xl font-bold text-pink-600">₹{item.price.toLocaleString()}</span>
+                    <span className="text-lg sm:text-xl font-bold text-yellow-600">₹{item.price.toLocaleString()}</span>
                     <span className="text-gray-500 text-xs sm:text-sm line-through">₹{(item.price * 1.2).toLocaleString()}</span>
                     <span className="text-green-600 text-xs sm:text-sm font-medium">17% off</span>
                   </div>
@@ -168,9 +168,7 @@ const WishlistPage = ({
                     <button
                       onClick={() => onAddToCart(item)}
                       className={`w-full py-2 px-4 rounded-lg font-medium transition-all duration-300 flex items-center justify-center space-x-2 text-sm ${
-                        isInCart(item.id)
-                          ? 'bg-green-500 text-white'
-                          : 'bg-pink-500 hover:bg-pink-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                        isInCart(item.id) ? 'bg-green-500 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
                       }`}
                     >
                       <ShoppingCart className="w-4 h-4" />
@@ -216,7 +214,7 @@ const WishlistPage = ({
                   alert('No items available to add to cart.');
                 }
               }}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-3 rounded-lg font-medium transition-colors text-sm"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg font-medium transition-colors text-sm"
             >
               Add All Available to Cart
             </button>
@@ -234,7 +232,7 @@ const WishlistPage = ({
             
             <button
               onClick={handleShare}
-              className="border border-pink-500 text-pink-500 hover:bg-pink-50 px-4 py-3 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2"
+              className="border border-yellow-500 text-yellow-500 hover:bg-yellow-50 px-4 py-3 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2"
             >
               <Share2 className="w-4 h-4" />
               <span>Share Wishlist</span>
@@ -243,20 +241,20 @@ const WishlistPage = ({
         </div>
 
         {/* Summary Card */}
-        <div className="mt-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 sm:p-6">
+        <div className="mt-6 bg-gradient-to-r from-yellow-50 to-gray-50 rounded-lg p-4 sm:p-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-lg sm:text-2xl font-bold text-pink-600">{wishlistItems.length}</div>
+              <div className="text-lg sm:text-2xl font-bold text-yellow-600">{wishlistItems.length}</div>
               <div className="text-xs sm:text-sm text-gray-600">Total Items</div>
             </div>
             <div>
-              <div className="text-lg sm:text-2xl font-bold text-purple-600">
+              <div className="text-lg sm:text-2xl font-bold text-yellow-700">
                 {wishlistItems.filter(item => item.inStock !== false).length}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">Available</div>
             </div>
             <div>
-              <div className="text-lg sm:text-2xl font-bold text-indigo-600">
+              <div className="text-lg sm:text-2xl font-bold text-gray-600">
                 ₹{Math.min(...wishlistItems.map(item => item.price)).toLocaleString()}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">Lowest Price</div>

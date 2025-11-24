@@ -12,7 +12,11 @@ import {
   Menu, 
   X 
 } from 'lucide-react';
-
+import { 
+  convertGoogleDriveUrl, 
+  subscribeToCategoriesUpdates,
+  fetchCategoryImages 
+} from '../../utils/helpers';
 const Header = ({ 
   currentView, 
   setCurrentView, 
@@ -46,14 +50,14 @@ const Header = ({
       onClick={onClick}
       className={`px-3 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 relative ${
         isActive 
-          ? 'bg-white/20 text-white shadow-md' 
-          : 'hover:bg-white/10 text-white/90 hover:text-white'
+          ? 'bg-yellow-500/20 text-yellow-400 shadow-md'
+          : 'hover:bg-yellow-500/10 text-gray-300 hover:text-yellow-400'
       } ${className}`}
     >
       <Icon className="w-4 h-4 flex-shrink-0" />
       <span className="font-medium">{children}</span>
       {badge && badge > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold min-w-[20px]">
+        <span className="absolute -top-1 -right-1 bg-yellow-500 text-gray-900 text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold min-w-[20px]">
           {badge > 99 ? '99+' : badge}
         </span>
       )}
@@ -61,7 +65,7 @@ const Header = ({
   );
 
   return (
-    <header className="bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-yellow-900 to-gray-900 text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           {/* Brand Logo */}
@@ -69,7 +73,12 @@ const Header = ({
             className="flex items-center space-x-3 flex-shrink-0 cursor-pointer"
             onClick={() => handleNavigation('home')}
           >
-            <ShoppingBag className="w-7 h-7 sm:w-8 sm:h-8" />
+            {/* Replace ShoppingBag with your logo */}
+            <img 
+              src={convertGoogleDriveUrl("https://drive.google.com/file/d/11Q3MrC8W2U9L5q97g3I-s5IfTfGmVC3u/view?usp=sharing")} 
+              alt="Thapasya Bangles Logo" 
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
+            />
             <div>
               <h1 className="text-lg sm:text-2xl font-bold leading-tight">
                 Thapasya Bangles
@@ -135,7 +144,7 @@ const Header = ({
                 
                 {/* User Profile Circle with Name */}
                 <div className="flex items-center space-x-2 bg-white/10 px-3 py-2 rounded-lg">
-                  <div className="w-8 h-8 bg-white text-pink-600 rounded-full flex items-center justify-center font-bold text-sm">
+                  <div className="w-8 h-8 bg-yellow-500 text-gray-900 rounded-full flex items-center justify-center font-bold text-sm">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <span className="text-sm font-medium hidden xl:block">
@@ -156,7 +165,7 @@ const Header = ({
                 onClick={() => handleNavigation('login')}
                 isActive={currentView === 'login'}
                 icon={User}
-                className="bg-white/20 hover:bg-white/30"
+                className="bg-yellow-500/20 hover:bg-yellow-500/30"
               >
                 Login
               </NavButton>
@@ -221,15 +230,20 @@ const Header = ({
 
         {/* Mobile Menu */}
         <div className={`
-          fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-gradient-to-b from-pink-500 to-purple-600 
+          fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-gradient-to-b from-yellow-900 to-gray-900
           transform transition-transform duration-300 ease-in-out z-50 lg:hidden
           ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
         `}>
           <div className="flex flex-col h-full">
             {/* Mobile Menu Header */}
-            <div className="flex justify-between items-center p-4 border-b border-white/20">
+\            <div className="flex justify-between items-center p-4 border-b border-white/20">
               <div className="flex items-center space-x-2">
-                <ShoppingBag className="w-6 h-6" />
+                {/* Replace ShoppingBag with your logo in mobile menu too */}
+                <img 
+                  src={convertGoogleDriveUrl("https://drive.google.com/file/d/11Q3MrC8W2U9L5q97g3I-s5IfTfGmVC3u/view?usp=sharing")} 
+                  alt="Thapasya Bangles Logo" 
+                  className="w-6 h-6 rounded-full object-cover"
+                />
                 <span className="text-lg font-bold">Menu</span>
               </div>
               <button
@@ -244,7 +258,7 @@ const Header = ({
             {isLoggedIn && (
               <div className="p-4 border-b border-white/20">
                 <div className="flex items-center space-x-3 bg-white/10 p-3 rounded-lg">
-                  <div className="w-12 h-12 bg-white text-pink-600 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
+                  <div className="w-12 h-12 bg-yellow-500 text-gray-900 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -256,7 +270,7 @@ const Header = ({
                     </div>
                     {isAdmin && (
                       <div className="mt-1">
-                        <span className="inline-block px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded">
+                        <span className="inline-block px-2 py-0.5 bg-yellow-500 text-gray-900 text-xs font-semibold rounded">
                           Admin
                         </span>
                       </div>

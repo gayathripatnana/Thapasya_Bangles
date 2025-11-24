@@ -105,7 +105,7 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
             <p className="text-gray-600 mb-8 px-4">Looks like you haven't added anything to your cart yet</p>
             <button
               onClick={onBack}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-6 sm:px-8 py-3 rounded-lg font-medium transition-colors"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 sm:px-8 py-3 rounded-lg font-medium transition-colors"
             >
               Start Shopping
             </button>
@@ -136,7 +136,6 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   <span>Shopping Cart ({cartItems.length} item{cartItems.length !== 1 ? 's' : ''})</span>
                 </h2>
               </div>
-
               <div className="divide-y divide-gray-200">
                 {cartItems.map((item) => (
                   <div key={item.id} className="p-4 sm:p-6">
@@ -169,7 +168,7 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                           <span className="text-gray-600 text-xs ml-1">({item.rating})</span>
                         </div>
                         
-                        <p className="text-lg sm:text-xl font-bold text-pink-600">₹{item.price.toLocaleString()}</p>
+                        <p className="text-lg sm:text-xl font-bold text-yellow-600">₹{item.price.toLocaleString()}</p>
                       </div>
 
                       <div className="flex flex-col items-end space-y-3">
@@ -209,6 +208,16 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   </div>
                 ))}
               </div>
+              <div className="p-4 sm:p-6 border-t border-gray-200">
+      <button
+        onClick={onBack}
+        className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+      >
+        <Plus className="w-5 h-5" />
+        <span>Add More Items</span>
+      </button>
+    </div>
+
             </div>
           </div>
 
@@ -231,11 +240,11 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       placeholder="Enter code"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-sm"
                     />
                     <button
                       onClick={handleApplyPromo}
-                      className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors text-sm font-medium"
+                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium"
                     >
                       Apply
                     </button>
@@ -258,10 +267,10 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   </div>
                   
                   {appliedPromoCode && (
-                    <div className="mt-2 flex items-center justify-between p-2 bg-green-50 rounded-lg">
+                    <div className="mt-2 flex items-center justify-between p-2 bg-yellow-50 rounded-lg">
                       <div className="flex items-center space-x-2">
-                        <Tag className="w-4 h-4 text-green-600" />
-                        <span className="text-sm text-green-700">
+                        <Tag className="w-4 h-4 text-yellow-600" />
+                        <span className="text-sm text-yellow-700">
                           {appliedPromoCode} applied ({promoCodes[appliedPromoCode]?.description})
                         </span>
                       </div>
@@ -283,7 +292,7 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   </div>
                   
                   {discount > 0 && (
-                    <div className="flex justify-between text-green-600">
+                    <div className="flex justify-between text-yellow-600">
                       <span>Discount</span>
                       <span>-₹{discount.toLocaleString()}</span>
                     </div>
@@ -291,24 +300,24 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   
                   <div className="flex justify-between">
                     <span className="text-gray-600">Delivery Charges</span>
-                    <span className={`font-medium ${deliveryCharges === 0 ? 'text-green-600' : ''}`}>
+                    <span className={`font-medium ${deliveryCharges === 0 ? 'text-yellow-600' : ''}`}>
                       {deliveryCharges === 0 ? 'FREE' : `₹${deliveryCharges}`}
                     </span>
                   </div>
                   
                   <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-200">
                     <span>Total</span>
-                    <span className="text-pink-600">₹{total.toLocaleString()}</span>
+                    <span className="text-yellow-600">₹{total.toLocaleString()}</span>
                   </div>
                 </div>
 
                 {/* Delivery Info */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2 text-blue-700">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2 text-gray-700">
                     <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span className="font-medium text-sm">Delivery Information</span>
                   </div>
-                  <p className="text-xs sm:text-sm text-blue-600 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">
                     {deliveryCharges === 0 
                       ? 'Free delivery on orders above ₹1,500' 
                       : `Add ₹${(1500 - subtotal).toLocaleString()} more for free delivery`
@@ -329,28 +338,28 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                         placeholder="Your Name"
                         value={customerInfo.name}
                         onChange={(e) => handleCustomerInfoChange('name', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                       />
                       <input
                         type="tel"
                         placeholder="Phone Number"
                         value={customerInfo.phone}
                         onChange={(e) => handleCustomerInfoChange('phone', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                       />
                       <input
                         type="email"
                         placeholder="Email (Optional)"
                         value={customerInfo.email}
                         onChange={(e) => handleCustomerInfoChange('email', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                       />
                       <textarea
                         placeholder="Delivery Address (Optional)"
                         value={customerInfo.address}
                         onChange={(e) => handleCustomerInfoChange('address', e.target.value)}
                         rows="2"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm resize-none"
                       />
                     </div>
                   </div>
@@ -361,7 +370,7 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   {/* Main WhatsApp Checkout Button */}
                   <button
                     onClick={handleCheckout}
-                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-6 rounded-lg font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2"
                   >
                     <Phone className="w-5 h-5" />
                     <span>{showCustomerForm ? 'Complete Order on WhatsApp' : 'Checkout via WhatsApp'}</span>
@@ -382,7 +391,7 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   {!showCustomerForm && (
                     <button
                       onClick={() => setShowCustomerForm(true)}
-                      className="w-full text-pink-600 hover:text-pink-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2 border border-pink-200 hover:border-pink-300"
+                      className="w-full text-yellow-600 hover:text-yellow-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2 border border-yellow-200 hover:border-yellow-300"
                     >
                       <User className="w-4 h-4" />
                       <span>Add Customer Details</span>
@@ -396,20 +405,20 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                 <div className="pt-4 border-t border-gray-200">
                   <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 text-center">
                     <div>
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-1">
-                        <Shield className="w-4 h-4 text-green-600" />
+                      <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                        <Shield className="w-4 h-4 text-yellow-600" />
                       </div>
                       <span>Secure Payment</span>
                     </div>
                     <div>
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-1">
-                        <RotateCcw className="w-4 h-4 text-blue-600" />
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                        <RotateCcw className="w-4 h-4 text-gray-600" />
                       </div>
                       <span>Easy Returns</span>
                     </div>
                     <div>
-                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-1">
-                        <Star className="w-4 h-4 text-purple-600" />
+                      <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                        <Star className="w-4 h-4 text-yellow-600" />
                       </div>
                       <span>Quality Assured</span>
                     </div>
@@ -419,14 +428,14 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
             </div>
 
             {/* Cart Summary for Mobile */}
-            <div className="mt-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 lg:hidden">
+            <div className="mt-6 bg-gradient-to-r from-yellow-50 to-gray-50 rounded-lg p-4 lg:hidden">
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div>
-                  <div className="text-lg font-bold text-pink-600">{cartItems.length}</div>
+                  <div className="text-lg font-bold text-yellow-600">{cartItems.length}</div>
                   <div className="text-xs text-gray-600">Items</div>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-purple-600">
+                  <div className="text-lg font-bold text-yellow-700">
                     {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
                   </div>
                   <div className="text-xs text-gray-600">Quantity</div>
@@ -450,7 +459,7 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
           <textarea
             placeholder="Any special instructions for your order..."
             rows="3"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none text-sm"
           ></textarea>
           <p className="text-xs text-gray-500 mt-2">
             Note: These instructions will be included in your WhatsApp order message

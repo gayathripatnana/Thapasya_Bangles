@@ -300,7 +300,7 @@ const handleCheckout = () => {
 // Update the checkout button:
 <button
   onClick={handleCheckout}
-  className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all transform hover:-translate-y-1 hover:shadow-lg"
+  className="w-full bg-gradient-to-r from-yellow-500 to-gray-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-gray-700 transition-all transform hover:-translate-y-1 hover:shadow-lg"
 >
   Send Order to WhatsApp
 </button>

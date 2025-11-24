@@ -74,7 +74,7 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
       title: 'Customers',
       value: orders.length,
       icon: <Users className="w-6 h-6 sm:w-8 sm:h-8" />,
-      color: 'bg-pink-500',
+      color: 'bg-yellow-500',
       trend: '+8%',
       subtitle: 'Active customers'
     }
@@ -262,7 +262,7 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Recent Orders</h3>
                 <button 
                   onClick={() => setCurrentView('admin-orders')}
-                  className="text-pink-600 hover:text-pink-700 font-medium flex items-center space-x-1 text-sm sm:text-base"
+                  className="text-yellow-600 hover:text-yellow-700 font-medium flex items-center space-x-1 text-sm sm:text-base"
                 >
                   <span>View All</span>
                   <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -284,7 +284,7 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
                     <div className="text-sm text-gray-600 mb-1">Product: {order.productName}</div>
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-500">{order.orderDate}</div>
-                      <div className="font-semibold text-pink-600">₹{order.amount.toLocaleString()}</div>
+                      <div className="font-semibold text-yellow-600">₹{order.amount.toLocaleString()}</div>
                     </div>
                   </div>
                 ))}

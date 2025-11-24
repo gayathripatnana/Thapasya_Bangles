@@ -62,7 +62,7 @@ const AdminSidebar = ({ currentView, setCurrentView }) => {
               onClick={() => setCurrentView(item.id)}
               className={`w-full text-left p-4 rounded-lg transition-all duration-200 group ${
                 isActive
-                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg transform scale-105'
+                  ? 'bg-gradient-to-r from-yellow-500 to-gray-600 text-white shadow-lg transform scale-105'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
               }`}
             >

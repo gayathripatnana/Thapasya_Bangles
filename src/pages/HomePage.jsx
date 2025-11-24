@@ -28,32 +28,33 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onAddToCart
     "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=600&fit=crop"
   ];
 
-  const features = [
-    {
-      icon: <Award className="w-6 h-6 text-pink-500" />,
-      title: "Premium Quality",
-      description: "Handcrafted with finest materials",
-      gradient: "from-pink-100 to-rose-100"
-    },
-    {
-      icon: <Heart className="w-6 h-6 text-red-500" />,
-      title: "Made with Love",
-      description: "Crafted with passion and care",
-      gradient: "from-red-100 to-pink-100"
-    },
-    {
-      icon: <Truck className="w-6 h-6 text-blue-500" />,
-      title: "Fast Delivery",
-      description: "2-5 days across India",
-      gradient: "from-blue-100 to-indigo-100"
-    },
-    {
-      icon: <Shield className="w-6 h-6 text-green-500" />,
-      title: "100% Authentic",
-      description: "Quality guarantee always",
-      gradient: "from-green-100 to-emerald-100"
-    }
-  ];
+  // Update feature icons and gradients:
+const features = [
+  {
+    icon: <Award className="w-6 h-6 text-yellow-500" />,
+    title: "Premium Quality",
+    description: "Handcrafted with finest materials",
+    gradient: "from-yellow-100 to-yellow-200"
+  },
+  {
+    icon: <Heart className="w-6 h-6 text-red-500" />,
+    title: "Made with Love",
+    description: "Crafted with passion and care",
+    gradient: "from-gray-100 to-gray-200"
+  },
+  {
+    icon: <Truck className="w-6 h-6 text-yellow-600" />,
+    title: "Fast Delivery",
+    description: "2-5 days across India",
+    gradient: "from-yellow-50 to-yellow-100"
+  },
+  {
+    icon: <Shield className="w-6 h-6 text-green-500" />,
+    title: "100% Authentic",
+    description: "Quality guarantee always",
+    gradient: "from-gray-50 to-gray-100"
+  }
+];
 
   const testimonials = [
     {
@@ -317,15 +318,13 @@ const handleCategoryClick = (categoryId) => {
     return cartItems && cartItems.some(item => item.id === productId);
   };
 
-  // Filter categories to only show those with images
-// Static categories - only show if they have images
 const staticCategories = [
-  { id: 'all', title: 'All', gradient: 'from-gray-400 to-gray-500' },
-  { id: 'bridal', title: 'Bridal Bangles', gradient: 'from-rose-400 to-pink-500' },
-  { id: 'glass', title: 'Glass Bangles', gradient: 'from-blue-400 to-cyan-500' },
-  { id: 'give_aways', title: 'Give Aways', gradient: 'from-green-400 to-emerald-500' },
-  { id: 'traditional', title: 'Traditional', gradient: 'from-amber-400 to-orange-500' },
-  { id: 'hair_accessories', title: 'Hair Accessories', gradient: 'from-purple-400 to-pink-500' }
+  { id: 'all', title: 'All', gradient: 'from-gray-600 to-gray-700' },
+  { id: 'bridal', title: 'Bridal Bangles', gradient: 'from-yellow-600 to-yellow-700' },
+  { id: 'glass', title: 'Glass Bangles', gradient: 'from-yellow-500 to-yellow-600' },
+  { id: 'give_aways', title: 'Give Aways', gradient: 'from-yellow-400 to-yellow-500' },
+  { id: 'traditional', title: 'Traditional', gradient: 'from-yellow-700 to-yellow-800' },
+  { id: 'hair_accessories', title: 'Hair Accessories', gradient: 'from-yellow-300 to-yellow-400' }
 ];
 
 const visibleCategories = staticCategories.filter(cat => 
@@ -335,7 +334,7 @@ const visibleCategories = staticCategories.filter(cat =>
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Auto-scrolling Images */}
-      <section className="relative bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 py-8 sm:py-12 lg:py-16 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-yellow-50 via-purple-50 to-indigo-50 py-8 sm:py-12 lg:py-16 overflow-hidden">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Ccircle cx='20' cy='20' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -348,7 +347,7 @@ const visibleCategories = staticCategories.filter(cat =>
             <div className="hidden lg:block lg:w-1/2 text-center lg:text-left mb-8 lg:mb-0">
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-3 leading-tight">
                 Beautiful <br />
-                <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent">
                   Bangles Collection
                 </span>
               </h1>
@@ -361,7 +360,7 @@ const visibleCategories = staticCategories.filter(cat =>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <button 
                   onClick={() => setCurrentView && setCurrentView('products', { category: 'all' })}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center text-sm sm:text-base"
+                  className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center text-sm sm:text-base"
                 >
                   Shop Now
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -369,7 +368,7 @@ const visibleCategories = staticCategories.filter(cat =>
                 
                 <button 
                   onClick={handleWhatsAppOrder}
-                  className="border-2 border-pink-500 text-pink-600 px-6 py-3 rounded-full font-semibold hover:bg-pink-50 transition-all duration-300 flex items-center justify-center text-sm sm:text-base"
+                  className="border-2 border-yellow-500 text-yellow-600 px-6 py-3 rounded-full font-semibold hover:bg-yellow-50 transition-all duration-300 flex items-center justify-center text-sm sm:text-base"
                 >
                   <Phone className="w-4 h-4 mr-2" />
                   Order on WhatsApp
@@ -382,7 +381,7 @@ const visibleCategories = staticCategories.filter(cat =>
               {loading ? (
                 <div className="aspect-square lg:aspect-video rounded-2xl bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse flex items-center justify-center">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
                     <span className="text-gray-600 font-medium">Loading images...</span>
                   </div>
                 </div>
@@ -407,7 +406,9 @@ const visibleCategories = staticCategories.filter(cat =>
                         loading={index === 0 ? 'eager' : 'lazy'}
                         onError={(e) => {
                           console.error('Image failed to load:', image);
-                          e.target.src = defaultHeroImages[index % defaultHeroImages.length];
+                          // Use a more reliable fallback
+                          e.target.src = `https://via.placeholder.com/800x600/f8f9fa/6c757d?text=Thapasya+Bangles+${index+1}`;
+                          e.target.onerror = null; // Prevent infinite loop
                         }}
                       />
                     ))}
@@ -476,8 +477,12 @@ const visibleCategories = staticCategories.filter(cat =>
                       <div className="relative w-20 h-20 sm:w-24 sm:h-24 mb-3">
                         <div className="w-full h-full rounded-full overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300">
                           {category.id === 'all' ? (
-                            <div className={`w-full h-full bg-gradient-to-br ${category.gradient} flex items-center justify-center text-white font-bold text-xl`}>
-                              All
+                            <div className="w-full h-full rounded-full overflow-hidden">
+                              <img 
+                                src={convertGoogleDriveUrl("https://drive.google.com/file/d/11Q3MrC8W2U9L5q97g3I-s5IfTfGmVC3u/view?usp=sharing")} 
+                                alt="All Categories" 
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                           ) : (
                             <img
@@ -489,7 +494,7 @@ const visibleCategories = staticCategories.filter(cat =>
                           )}
                         </div>
                       </div>
-                      <h3 className="text-xs sm:text-sm font-semibold text-gray-800 text-center leading-tight group-hover:text-pink-600 transition-colors max-w-[80px] sm:max-w-none">
+                      <h3 className="text-xs sm:text-sm font-semibold text-gray-800 text-center leading-tight group-hover:text-yellow-600 transition-colors max-w-[80px] sm:max-w-none">
                         {category.title}
                       </h3>
                     </div>
@@ -500,7 +505,7 @@ const visibleCategories = staticCategories.filter(cat =>
               <div className="text-center mt-6">
                 <button 
                   onClick={() => setCurrentView && setCurrentView('products', { category: 'all' })}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center mx-auto text-sm sm:text-base"
+                  className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center mx-auto text-sm sm:text-base"
                 >
                   View All Products
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -555,7 +560,7 @@ const visibleCategories = staticCategories.filter(cat =>
                               }}
                               className={`absolute top-3 right-3 p-2 rounded-full shadow-md transition-colors ${
                                 isInWishlist(product.id) 
-                                  ? 'bg-pink-500 text-white' 
+                                  ? 'bg-yellow-500 text-white' 
                                   : 'bg-white text-gray-600 hover:bg-gray-50'
                               }`}
                             >
@@ -583,7 +588,7 @@ const visibleCategories = staticCategories.filter(cat =>
 
                             <div className="flex items-center justify-between mb-3">
                               <div>
-                                <span className="text-xl font-bold text-pink-600">₹{product.price.toLocaleString()}</span>
+                                <span className="text-xl font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
                                 <span className="text-gray-500 text-sm line-through ml-2">₹{(product.price * 1.2).toLocaleString()}</span>
                               </div>
                             </div>
@@ -596,7 +601,7 @@ const visibleCategories = staticCategories.filter(cat =>
                               className={`w-full py-2 px-4 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center ${
                                 isInCart(product.id)
                                   ? 'bg-green-500 text-white'
-                                  : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                                  : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
                               }`}
                             >
                               <ShoppingBag className="w-4 h-4 mr-2" />
@@ -635,7 +640,7 @@ const visibleCategories = staticCategories.filter(cat =>
                         key={index}
                         onClick={() => setCurrentFeatured(index)}
                         className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          index === currentFeatured ? 'bg-pink-500 w-6' : 'bg-gray-300'
+                          index === currentFeatured ? 'bg-yellow-500 w-6' : 'bg-gray-300'
                         }`}
                       />
                     ))}
@@ -668,7 +673,7 @@ const visibleCategories = staticCategories.filter(cat =>
                           }}
                           className={`absolute top-3 right-3 p-2 rounded-full shadow-md transition-colors ${
                             isInWishlist(product.id) 
-                              ? 'bg-pink-500 text-white' 
+                              ? 'bg-yellow-500 text-white' 
                               : 'bg-white text-gray-600 hover:bg-gray-50'
                           }`}
                         >
@@ -696,7 +701,7 @@ const visibleCategories = staticCategories.filter(cat =>
 
                         <div className="flex items-center justify-between mb-3">
                           <div>
-                            <span className="text-xl font-bold text-pink-600">₹{product.price.toLocaleString()}</span>
+                            <span className="text-xl font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
                             <span className="text-gray-500 text-sm line-through ml-2">₹{(product.price * 1.2).toLocaleString()}</span>
                           </div>
                         </div>
@@ -709,7 +714,7 @@ const visibleCategories = staticCategories.filter(cat =>
                           className={`w-full py-2 px-4 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center ${
                             isInCart(product.id)
                               ? 'bg-green-500 text-white'
-                              : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                              : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
                           }`}
                         >
                           <ShoppingBag className="w-4 h-4 mr-2" />
@@ -724,7 +729,7 @@ const visibleCategories = staticCategories.filter(cat =>
               <div className="text-center mt-6">
                 <button 
                   onClick={() => setCurrentView && setCurrentView('products', { category: 'all' })}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center mx-auto text-sm sm:text-base"
+                  className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center mx-auto text-sm sm:text-base"
                 >
                   View All Products
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -775,7 +780,7 @@ const visibleCategories = staticCategories.filter(cat =>
                 <img
                   src={testimonials[currentTestimonial].image}
                   alt={testimonials[currentTestimonial].name}
-                  className="w-16 h-16 rounded-full mx-auto mb-4 object-cover border-4 border-pink-100"
+                  className="w-16 h-16 rounded-full mx-auto mb-4 object-cover border-4 border-yellow-100"
                   loading="lazy"
                 />
                 <div className="flex justify-center mb-3">
@@ -802,7 +807,7 @@ const visibleCategories = staticCategories.filter(cat =>
                   key={index}
                   onClick={() => setCurrentTestimonial(index)}
                   className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentTestimonial ? 'bg-pink-500 w-6' : 'bg-gray-300'
+                    index === currentTestimonial ? 'bg-yellow-500 w-6' : 'bg-gray-300'
                   }`}
                 />
               ))}
@@ -822,7 +827,7 @@ const visibleCategories = staticCategories.filter(cat =>
           <div className="grid grid-cols-3 gap-4 sm:gap-6 max-w-2xl mx-auto">
             {processSteps.map((step, index) => (
               <div key={index} className="text-center">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-600 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 text-white font-bold text-lg sm:text-xl">
+                <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 text-white font-bold text-lg sm:text-xl">
                   {step.icon}
                 </div>
                 <h3 className="font-semibold text-gray-800 text-sm sm:text-base mb-1">{step.title}</h3>
