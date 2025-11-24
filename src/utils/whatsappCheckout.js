@@ -1,5 +1,5 @@
 // utils/whatsappCheckout.js - Enhanced WhatsApp checkout functionality
-export const WHATSAPP_NUMBER = '916304541430';
+export const WHATSAPP_NUMBER = '918074086883';
 
 /**
  * Creates a comprehensive WhatsApp message for cart checkout

@@ -17,6 +17,8 @@ const Header = ({
   currentView, 
   setCurrentView, 
   isAdmin, 
+  isLoggedIn,
+  user,
   handleLogout, 
   cartItemsCount = 0, 
   wishlistItemsCount = 0 
@@ -29,7 +31,7 @@ const Header = ({
 
   const handleNavigation = (view) => {
     setCurrentView(view);
-    setIsMobileMenuOpen(false); // Close mobile menu after navigation
+    setIsMobileMenuOpen(false);
   };
 
   const NavButton = ({ 
@@ -63,7 +65,10 @@ const Header = ({
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           {/* Brand Logo */}
-          <div className="flex items-center space-x-3 flex-shrink-0">
+          <div 
+            className="flex items-center space-x-3 flex-shrink-0 cursor-pointer"
+            onClick={() => handleNavigation('home')}
+          >
             <ShoppingBag className="w-7 h-7 sm:w-8 sm:h-8" />
             <div>
               <h1 className="text-lg sm:text-2xl font-bold leading-tight">
@@ -116,15 +121,28 @@ const Header = ({
               </>
             )}
             
-            {isAdmin ? (
+            {isLoggedIn ? (
               <div className="flex items-center space-x-2 ml-2">
-                <NavButton
-                  onClick={() => handleNavigation('admin-dashboard')}
-                  isActive={currentView.includes('admin')}
-                  icon={BarChart3}
-                >
-                  Dashboard
-                </NavButton>
+                {isAdmin && (
+                  <NavButton
+                    onClick={() => handleNavigation('admin-dashboard')}
+                    isActive={currentView.includes('admin')}
+                    icon={BarChart3}
+                  >
+                    Dashboard
+                  </NavButton>
+                )}
+                
+                {/* User Profile Circle with Name */}
+                <div className="flex items-center space-x-2 bg-white/10 px-3 py-2 rounded-lg">
+                  <div className="w-8 h-8 bg-white text-pink-600 rounded-full flex items-center justify-center font-bold text-sm">
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <span className="text-sm font-medium hidden xl:block">
+                    {user?.name?.split(' ')[0] || 'User'}
+                  </span>
+                </div>
+                
                 <button
                   onClick={handleLogout}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -135,12 +153,12 @@ const Header = ({
               </div>
             ) : (
               <NavButton
-                onClick={() => handleNavigation('admin-login')}
-                isActive={currentView === 'admin-login'}
+                onClick={() => handleNavigation('login')}
+                isActive={currentView === 'login'}
                 icon={User}
                 className="bg-white/20 hover:bg-white/30"
               >
-                Admin
+                Login
               </NavButton>
             )}
           </nav>
@@ -222,8 +240,34 @@ const Header = ({
               </button>
             </div>
 
+            {/* User Profile Section - Show when logged in */}
+            {isLoggedIn && (
+              <div className="p-4 border-b border-white/20">
+                <div className="flex items-center space-x-3 bg-white/10 p-3 rounded-lg">
+                  <div className="w-12 h-12 bg-white text-pink-600 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-white truncate">
+                      {user?.name || 'User'}
+                    </div>
+                    <div className="text-xs text-white/80 truncate">
+                      {user?.email || ''}
+                    </div>
+                    {isAdmin && (
+                      <div className="mt-1">
+                        <span className="inline-block px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded">
+                          Admin
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Mobile Menu Items */}
-            <nav className="flex flex-col p-4 space-y-2 flex-1">
+            <nav className="flex flex-col p-4 space-y-2 flex-1 overflow-y-auto">
               <NavButton
                 onClick={() => handleNavigation('home')}
                 isActive={currentView === 'home'}
@@ -243,16 +287,42 @@ const Header = ({
               </NavButton>
 
               {/* Admin or User specific menu items */}
-              {isAdmin ? (
+              {isLoggedIn ? (
                 <>
-                  <NavButton
-                    onClick={() => handleNavigation('admin-dashboard')}
-                    isActive={currentView.includes('admin')}
-                    icon={BarChart3}
-                    className="w-full justify-start py-3"
-                  >
-                    Admin Dashboard
-                  </NavButton>
+                  {isAdmin && (
+                    <NavButton
+                      onClick={() => handleNavigation('admin-dashboard')}
+                      isActive={currentView.includes('admin')}
+                      icon={BarChart3}
+                      className="w-full justify-start py-3"
+                    >
+                      Admin Dashboard
+                    </NavButton>
+                  )}
+                  
+                  {!isAdmin && (
+                    <>
+                      <NavButton
+                        onClick={() => handleNavigation('wishlist')}
+                        isActive={currentView === 'wishlist'}
+                        icon={Heart}
+                        badge={wishlistItemsCount > 0 ? wishlistItemsCount : null}
+                        className="w-full justify-start py-3"
+                      >
+                        Wishlist
+                      </NavButton>
+
+                      <NavButton
+                        onClick={() => handleNavigation('cart')}
+                        isActive={currentView === 'cart'}
+                        icon={ShoppingCart}
+                        badge={cartItemsCount > 0 ? cartItemsCount : null}
+                        className="w-full justify-start py-3"
+                      >
+                        Shopping Cart
+                      </NavButton>
+                    </>
+                  )}
                   
                   <div className="pt-4 mt-4 border-t border-white/20">
                     <button
@@ -291,12 +361,12 @@ const Header = ({
 
                   <div className="pt-4 mt-4 border-t border-white/20">
                     <NavButton
-                      onClick={() => handleNavigation('admin-login')}
-                      isActive={currentView === 'admin-login'}
+                      onClick={() => handleNavigation('login')}
+                      isActive={currentView === 'login'}
                       icon={User}
                       className="w-full justify-start py-3 bg-white/10"
                     >
-                      Admin Login
+                      Login
                     </NavButton>
                   </div>
                 </>

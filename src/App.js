@@ -1,41 +1,136 @@
-// App.js - Updated with Cart and Wishlist functionality
-import React, { useState } from 'react';
+// App.js - Updated with Firebase integration
+import React, { useState, useEffect } from 'react';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
-import AdminLoginPage from './pages/AdminLoginPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageProducts from './pages/ManageProducts';
 import ManageOrders from './pages/ManageOrders';
 import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
-import { initialProducts, initialOrders } from './data/mockData';
-import { ADMIN_CREDENTIALS } from './utils/constants';
+import { 
+  fetchProducts, 
+  addProduct, 
+  updateProduct, 
+  deleteProduct,
+  subscribeToProductsUpdates,
+  subscribeToCategoriesUpdates
+} from './utils/helpers';
 import './App.css';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [products, setProducts] = useState(initialProducts);
-  const [orders, setOrders] = useState(initialOrders);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAdminLogin = (username, password) => {
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-      setIsAdmin(true);
-      setCurrentView('admin-dashboard');
-      return true;
+  // Check for existing session on component mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('thapasyaUser');
+    if (savedUser) {
+      const userData = JSON.parse(savedUser);
+      setUser(userData);
+      setIsLoggedIn(true);
+      // Check if admin based on email
+      setIsAdmin(userData.email === 'thapasyabangles@gmail.com');
     }
-    return false;
+    setLoading(false);
+  }, []);
+
+  // Load products from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToProductsUpdates((fetchedProducts) => {
+      setProducts(fetchedProducts);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
+  // Handle user login
+  const handleLogin = (email, password, isGoogleAuth = false, googleUser = null) => {
+    let userData;
+    
+    if (isGoogleAuth) {
+      userData = googleUser;
+    } else {
+      // Email/password login
+      userData = {
+        email: email,
+        name: email.split('@')[0],
+        isGoogleAuth: false
+      };
+    }
+
+    // Check if admin (based on email)
+    const adminUser = email === 'thapasyabangles@gmail.com';
+    
+    setUser(userData);
+    setIsLoggedIn(true);
+    setIsAdmin(adminUser);
+    
+    // Save to localStorage
+    localStorage.setItem('thapasyaUser', JSON.stringify(userData));
+    
+    // Redirect based on role
+    setCurrentView(adminUser ? 'admin-dashboard' : 'home');
+    
+    return true;
+  };
+
+  // Handle user registration
+  const handleRegister = (formData, isGoogleAuth = false) => {
+    let userData;
+    
+    if (isGoogleAuth) {
+      userData = formData;
+    } else {
+      userData = {
+        name: formData.name,
+        email: formData.email,
+        isGoogleAuth: false
+      };
+    }
+
+    // Check if admin (based on email)
+    const adminUser = userData.email === 'thapasyabangles@gmail.com';
+    
+    setUser(userData);
+    setIsLoggedIn(true);
+    setIsAdmin(adminUser);
+    
+    // Save to localStorage
+    localStorage.setItem('thapasyaUser', JSON.stringify(userData));
+    
+    // Redirect based on role
+    setCurrentView(adminUser ? 'admin-dashboard' : 'home');
+    
+    return true;
   };
 
   const handleLogout = () => {
+    setIsLoggedIn(false);
     setIsAdmin(false);
+    setUser(null);
+    localStorage.removeItem('thapasyaUser');
     setCurrentView('home');
+  };
+
+  const switchToRegister = () => {
+    setCurrentView('register');
+  };
+
+  const switchToLogin = () => {
+    setCurrentView('login');
   };
 
   const handleProductClick = (productId) => {
@@ -48,20 +143,41 @@ function App() {
     setCurrentView('products');
   };
 
-  const addProduct = (productData) => {
-    const newProduct = {
-      ...productData,
-      id: Math.max(...products.map(p => p.id)) + 1
-    };
-    setProducts([...products, newProduct]);
+  // Firebase product operations
+  const handleAddProduct = async (productData) => {
+    try {
+      await addProduct(productData);
+      // Products will be updated automatically via the subscription
+      return true;
+    } catch (error) {
+      console.error('Error adding product:', error);
+      alert('Error adding product. Please try again.');
+      return false;
+    }
   };
 
-  const updateProduct = (id, productData) => {
-    setProducts(products.map(p => p.id === id ? { ...p, ...productData } : p));
+  const handleUpdateProduct = async (id, productData) => {
+    try {
+      await updateProduct(id, productData);
+      // Products will be updated automatically via the subscription
+      return true;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      alert('Error updating product. Please try again.');
+      return false;
+    }
   };
 
-  const deleteProduct = (id) => {
-    setProducts(products.filter(p => p.id !== id));
+  const handleDeleteProduct = async (id) => {
+    try {
+      await deleteProduct(id);
+      // Products will be updated automatically via the subscription
+      return true;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Error deleting product. Please try again.');
+      return false;
+    }
   };
 
   const updateOrderStatus = (orderId, status) => {
@@ -118,12 +234,26 @@ function App() {
   };
 
   const renderCurrentView = () => {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+    
     switch (currentView) {
       case 'home':
         return <HomePage 
           setCurrentView={setCurrentView} 
+          onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
           onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
         />;
       case 'products':
         return <ProductsPage 
@@ -131,6 +261,8 @@ function App() {
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
           onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
         />;
       case 'product-details':
         const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -139,6 +271,18 @@ function App() {
           onBack={handleBackToProducts}
           onAddToWishlist={handleAddToWishlist}
           onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
+      case 'login':
+        return <LoginPage 
+          onLogin={handleLogin} 
+          onSwitchToRegister={switchToRegister} 
+        />;
+      case 'register':
+        return <RegisterPage 
+          onRegister={handleRegister} 
+          onSwitchToLogin={switchToLogin} 
         />;
       case 'cart':
         return <CartPage 
@@ -155,37 +299,61 @@ function App() {
           onProductClick={handleProductClick}
           onBack={() => setCurrentView('products')}
         />;
-      case 'admin-login':
-        return <AdminLoginPage onLogin={handleAdminLogin} />;
       case 'admin-dashboard':
-        return <AdminDashboard 
-          products={products} 
-          orders={orders} 
-          setCurrentView={setCurrentView}
-        />;
-      case 'admin-products':
-        return (
-          <ManageProducts
-            products={products}
-            onAdd={addProduct}
-            onUpdate={updateProduct}
-            onDelete={deleteProduct}
+        return isAdmin ? (
+          <AdminDashboard 
+            products={products} 
+            orders={orders} 
             setCurrentView={setCurrentView}
           />
-        );
+        ) : <HomePage 
+          setCurrentView={setCurrentView} 
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
+      case 'admin-products':
+        return isAdmin ? (
+          <ManageProducts
+            products={products}
+            onAdd={handleAddProduct}
+            onUpdate={handleUpdateProduct}
+            onDelete={handleDeleteProduct}
+            setCurrentView={setCurrentView}
+          />
+        ) : <HomePage 
+          setCurrentView={setCurrentView} 
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
       case 'admin-orders':
-        return (
+        return isAdmin ? (
           <ManageOrders
             orders={orders}
             onStatusUpdate={updateOrderStatus}
             setCurrentView={setCurrentView}
           />
-        );
+        ) : <HomePage 
+          setCurrentView={setCurrentView} 
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
       default:
         return <HomePage 
           setCurrentView={setCurrentView} 
+          onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
           onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
         />;
     }
   };
@@ -196,6 +364,8 @@ function App() {
         currentView={currentView}
         setCurrentView={setCurrentView}
         isAdmin={isAdmin}
+        isLoggedIn={isLoggedIn}
+        user={user}
         handleLogout={handleLogout}
         cartItemsCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
         wishlistItemsCount={wishlistItems.length}

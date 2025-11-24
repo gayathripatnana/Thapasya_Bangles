@@ -1,5 +1,5 @@
 // utils/whatsapp.js - Fixed version with proper exports
-export const WHATSAPP_NUMBER = '916304541430';
+export const WHATSAPP_NUMBER = '918074086883';
 
 /**
  * Creates a formatted WhatsApp message for product orders

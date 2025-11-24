@@ -2,16 +2,25 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Package, SlidersHorizontal } from 'lucide-react';
 import ProductCard from '../components/product/ProductCard';
+import { subscribeToCategoriesUpdates } from '../utils/helpers';
 
-const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems, cartItems, initialCategory = 'All' }) => {
+const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems, cartItems, initialCategory = 'all' }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState('name');
   const [priceRange, setPriceRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [categories, setCategories] = useState([]);
   
-  const categories = ['All', ...new Set(products.map(p => p.category))];
-  
+  // Load categories
+  useEffect(() => {
+    const unsubscribe = subscribeToCategoriesUpdates((fetchedCategories) => {
+      setCategories(fetchedCategories);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
   // Update category when initialCategory changes
   useEffect(() => {
     setSelectedCategory(initialCategory);
@@ -20,7 +29,7 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
   const filteredProducts = products
     .filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory || (selectedCategory === 'all' && true);
       const matchesPrice = () => {
         switch (priceRange) {
           case 'under-500':
@@ -57,7 +66,7 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
 
   const clearAllFilters = () => {
     setSearchTerm('');
-    setSelectedCategory('All');
+    setSelectedCategory('all');
     setPriceRange('all');
     setSortBy('name');
   };
@@ -69,6 +78,16 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
   const isInCart = (productId) => {
     return cartItems && cartItems.some(item => item.id === productId);
   };
+
+// Static category options
+const categoryOptions = [
+  { id: 'all', title: 'All' },
+  { id: 'Bridal Bangles', title: 'Bridal Bangles' },
+  { id: 'Glass Bangles', title: 'Glass Bangles' },
+  { id: 'Give Aways', title: 'Give Aways' },
+  { id: 'Traditional', title: 'Traditional' },
+  { id: 'Hair Accessories', title: 'Hair Accessories' }
+];
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
@@ -105,7 +124,7 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
           >
             <SlidersHorizontal className="w-4 h-4" />
             <span className="text-sm font-medium">Filters</span>
-            {(selectedCategory !== 'All' || priceRange !== 'all' || sortBy !== 'name') && (
+            {(selectedCategory !== 'all' || priceRange !== 'all' || sortBy !== 'name') && (
               <span className="bg-pink-500 text-white text-xs px-2 py-1 rounded-full">•</span>
             )}
           </button>
@@ -127,8 +146,8 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
                 >
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
+                  {categoryOptions.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.title}</option>
                   ))}
                 </select>
               </div>
@@ -198,8 +217,8 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
               >
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                {categoryOptions.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.title}</option>
                 ))}
               </select>
             </div>
@@ -241,7 +260,7 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
               {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
             </span>
             <div className="flex items-center space-x-4">
-              {(selectedCategory !== 'All' || priceRange !== 'all' || sortBy !== 'name') && (
+              {(selectedCategory !== 'all' || priceRange !== 'all' || sortBy !== 'name') && (
                 <button
                   onClick={clearAllFilters}
                   className="text-pink-600 hover:text-pink-700 font-medium text-sm"

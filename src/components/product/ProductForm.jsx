@@ -151,7 +151,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
               }`}
               placeholder="Enter product name"
               disabled={isSubmitting}
-          />
+            />
             {errors.name && (
               <p className="text-red-500 text-sm mt-1 flex items-center">
                 <span className="w-4 h-4 mr-1">⚠</span>
@@ -200,13 +200,11 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
               disabled={isSubmitting}
             >
               <option value="">Select Category</option>
-              <option value="Traditional">Traditional</option>
-              <option value="Contemporary">Contemporary</option>
-              <option value="Designer">Designer</option>
-              <option value="Bridal">Bridal</option>
-              <option value="Antique">Antique</option>
-              <option value="Kundan Bangles">Kundan Bangles</option>
+              <option value="Bridal Bangles">Bridal Bangles</option>
               <option value="Glass Bangles">Glass Bangles</option>
+              <option value="Give Aways">Give Aways</option>
+              <option value="Traditional">Traditional</option>
+              <option value="Hair Accessories">Hair Accessories</option>
             </select>
             {errors.category && (
               <p className="text-red-500 text-sm mt-1">{errors.category}</p>
@@ -216,7 +214,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
           {/* Image URL */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image URL *
+              Image URL * (Google Drive URL supported)
             </label>
             <div className="flex space-x-2">
               <input
@@ -228,21 +226,16 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                     ? 'border-red-500 focus:ring-red-500' 
                     : 'border-gray-300 focus:ring-pink-500'
                 }`}
-                placeholder="https://example.com/image.jpg"
+                placeholder="https://drive.google.com/file/d/..."
                 disabled={isSubmitting}
               />
-              <button
-                type="button"
-                className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors flex items-center space-x-2"
-                disabled={isSubmitting}
-              >
-                <Upload className="w-4 h-4" />
-                <span>Upload</span>
-              </button>
             </div>
             {errors.image && (
               <p className="text-red-500 text-sm mt-1">{errors.image}</p>
             )}
+            <p className="text-xs text-gray-500 mt-1">
+              Paste Google Drive link (e.g., https://drive.google.com/file/d/ID/view?usp=drive_link)
+            </p>
           </div>
           
           {/* Rating */}
@@ -345,7 +338,15 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             </label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
               <img
-                src={formData.image}
+                src={(() => {
+                  const url = formData.image;
+                  // Convert Google Drive URLs
+                  if (url.includes('drive.google.com/file/d/')) {
+                    const fileId = url.split('/d/')[1].split('/')[0];
+                    return `https://lh3.googleusercontent.com/d/${fileId}=s1000`;
+                  }
+                  return url;
+                })()}
                 alt="Preview"
                 className="w-32 h-32 object-cover rounded-lg mx-auto"
                 onError={(e) => {

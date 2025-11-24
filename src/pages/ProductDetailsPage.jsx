@@ -1,6 +1,7 @@
-// pages/ProductDetailsPage.jsx - Product Details with WhatsApp Integration
-import React, { useState } from 'react';
+// pages/ProductDetailsPage.jsx - Updated with Firebase integration
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle } from 'lucide-react';
+import { getProductsByCategory } from '../utils/helpers';
 
 const ProductDetailsPage = ({ 
   product, 
@@ -17,63 +18,29 @@ const ProductDetailsPage = ({
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [dynamicRelatedProducts, setDynamicRelatedProducts] = useState([]);
 
-  // Sample products if no product is provided
-  const sampleProduct = product || {
-    id: 1,
-    name: "Royal Kundan Bangles Set",
-    category: "Kundan Bangles",
-    price: 1299,
-    rating: 4.8,
-    image: "https://images.unsplash.com/photo-1630019852942-f89202989a59?w=400&h=400&fit=crop",
-    inStock: true,
-    description: "Exquisite royal kundan bangles with intricate gold work and traditional craftsmanship. Each piece is carefully crafted using traditional techniques and finest materials, ensuring premium quality and timeless elegance. Perfect for special occasions or daily wear, this bangle combines classic design with modern appeal."
-  };
+  // Load related products based on category
+  useEffect(() => {
+    const loadRelatedProducts = async () => {
+      if (product && product.category) {
+        const related = await getProductsByCategory(product.category);
+        // Filter out current product and limit to 4
+        const filteredRelated = related
+          .filter(p => p.id !== product.id)
+          .slice(0, 4);
+        setDynamicRelatedProducts(filteredRelated);
+      }
+    };
 
-  // Sample related products if none provided
-  const sampleRelatedProducts = relatedProducts.length > 0 ? relatedProducts : [
-    {
-      id: 2,
-      name: "Traditional Glass Bangles",
-      category: "Glass Bangles",
-      price: 299,
-      rating: 4.6,
-      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop",
-      inStock: true
-    },
-    {
-      id: 3,
-      name: "Designer Pearl Bangles",
-      category: "Designer",
-      price: 899,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=400&h=400&fit=crop",
-      inStock: true
-    },
-    {
-      id: 4,
-      name: "Bridal Gold Bangles",
-      category: "Bridal",
-      price: 2499,
-      rating: 4.7,
-      image: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop",
-      inStock: true
-    },
-    {
-      id: 5,
-      name: "Antique Silver Bangles",
-      category: "Traditional",
-      price: 799,
-      rating: 4.5,
-      image: "https://images.unsplash.com/photo-1630019852942-f89202989a59?w=400&h=400&fit=crop",
-      inStock: true
+    if (relatedProducts && relatedProducts.length > 0) {
+      setDynamicRelatedProducts(relatedProducts);
+    } else if (product) {
+      loadRelatedProducts();
     }
-  ];
+  }, [product, relatedProducts]);
 
-  const currentProduct = product || sampleProduct;
-  const displayRelatedProducts = relatedProducts.length > 0 ? relatedProducts : sampleRelatedProducts;
-
-  if (!currentProduct) {
+  if (!product) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4 text-center">
@@ -91,10 +58,10 @@ const ProductDetailsPage = ({
 
   // Mock multiple images (in real app, product would have multiple images)
   const productImages = [
-    currentProduct.image,
-    currentProduct.image, // You can replace with actual multiple images
-    currentProduct.image,
-    currentProduct.image
+    product.image,
+    product.image, // You can replace with actual multiple images
+    product.image,
+    product.image
   ];
 
   const handleQuantityChange = (change) => {
@@ -106,12 +73,12 @@ const ProductDetailsPage = ({
 
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) {
-      onAddToCart(currentProduct);
+      onAddToCart(product);
     }
   };
 
   const orderProductViaWhatsApp = (product, quantity) => {
-    const whatsappNumber = "+919876543210";
+    const whatsappNumber = "+918074086883";
     const message = `Hi! I would like to order:
     
 Product: ${product.name}
@@ -127,14 +94,14 @@ Please confirm availability and share payment details. Thank you!`;
   };
 
   const handleWhatsAppOrder = () => {
-    orderProductViaWhatsApp(currentProduct, quantity);
+    orderProductViaWhatsApp(product, quantity);
   };
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: currentProduct.name,
-        text: `Check out this beautiful bangle: ${currentProduct.name} - ₹${currentProduct.price.toLocaleString()}`,
+        title: product.name,
+        text: `Check out this beautiful bangle: ${product.name} - ₹${product.price.toLocaleString()}`,
         url: window.location.href,
       });
     } else {
@@ -151,14 +118,16 @@ Please confirm availability and share payment details. Thank you!`;
   };
 
   // Check if product is in wishlist
-  const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === currentProduct.id) : isInWishlist;
+  const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
   
   // Check if product is in cart
-  const productInCart = cartItems ? cartItems.some(item => item.id === currentProduct.id) : isInCart;
+  const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
 
-  const totalPrice = currentProduct.price * quantity;
-  const originalPrice = Math.round(currentProduct.price * 1.2);
-  const discountPercentage = Math.round(((originalPrice - currentProduct.price) / originalPrice) * 100);
+  const totalPrice = product.price * quantity;
+  const originalPrice = Math.round(product.price * 1.2);
+  const discountPercentage = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+
+  const displayRelatedProducts = dynamicRelatedProducts.length > 0 ? dynamicRelatedProducts : [];
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
@@ -189,7 +158,7 @@ Please confirm availability and share payment details. Thank you!`;
             <div className="relative aspect-square bg-white rounded-xl shadow-lg overflow-hidden">
               <img
                 src={productImages[selectedImage]}
-                alt={currentProduct.name}
+                alt={product.name}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -197,11 +166,11 @@ Please confirm availability and share payment details. Thank you!`;
               {/* Stock Status Badge */}
               <div className="absolute top-4 left-4">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${
-                  currentProduct.inStock !== false 
+                  product.inStock !== false 
                     ? 'bg-green-500 text-white' 
                     : 'bg-red-500 text-white'
                 }`}>
-                  {currentProduct.inStock !== false ? (
+                  {product.inStock !== false ? (
                     <>
                       <CheckCircle className="w-4 h-4" />
                       <span>In Stock</span>
@@ -217,7 +186,7 @@ Please confirm availability and share payment details. Thank you!`;
 
               {/* Wishlist Button */}
               <button
-                onClick={() => onAddToWishlist && onAddToWishlist(currentProduct)}
+                onClick={() => onAddToWishlist && onAddToWishlist(product)}
                 className={`absolute top-4 right-4 p-3 rounded-full shadow-lg transition-all duration-300 ${
                   productInWishlist 
                     ? 'bg-pink-500 text-white scale-110' 
@@ -243,7 +212,7 @@ Please confirm availability and share payment details. Thank you!`;
                 >
                   <img
                     src={image}
-                    alt={`${currentProduct.name} ${index + 1}`}
+                    alt={`${product.name} ${index + 1}`}
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
@@ -256,8 +225,8 @@ Please confirm availability and share payment details. Thank you!`;
           <div className="space-y-6">
             {/* Basic Info */}
             <div>
-              <div className="text-sm text-gray-500 mb-2">{currentProduct.category}</div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">{currentProduct.name}</h1>
+              <div className="text-sm text-gray-500 mb-2">{product.category}</div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">{product.name}</h1>
               
               {/* Rating */}
               <div className="flex items-center space-x-3 mb-4">
@@ -266,18 +235,18 @@ Please confirm availability and share payment details. Thank you!`;
                     <Star
                       key={i}
                       className={`w-5 h-5 ${
-                        i < Math.floor(currentProduct.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                        i < Math.floor(product.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-gray-600">({currentProduct.rating}/5)</span>
+                <span className="text-gray-600">({product.rating}/5)</span>
                 <span className="text-sm text-gray-500">• 125 reviews</span>
               </div>
 
               {/* Price */}
               <div className="flex items-center space-x-3 mb-6">
-                <span className="text-3xl font-bold text-pink-600">₹{currentProduct.price.toLocaleString()}</span>
+                <span className="text-3xl font-bold text-pink-600">₹{product.price.toLocaleString()}</span>
                 <span className="text-xl text-gray-500 line-through">₹{originalPrice.toLocaleString()}</span>
                 <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
                   {discountPercentage}% OFF
@@ -316,7 +285,7 @@ Please confirm availability and share payment details. Thank you!`;
 
             {/* Action Buttons */}
             <div className="space-y-3">
-              {currentProduct.inStock !== false ? (
+              {product.inStock !== false ? (
                 <>
                   {/* WhatsApp Order Button */}
                   <button
@@ -383,7 +352,7 @@ Please confirm availability and share payment details. Thank you!`;
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Description</h3>
               <div className={`text-gray-600 leading-relaxed ${showFullDescription ? '' : 'line-clamp-3'}`}>
-                {currentProduct.description || `Exquisite handcrafted ${currentProduct.name.toLowerCase()} from our ${currentProduct.category.toLowerCase()} collection. Each piece is carefully crafted using traditional techniques and finest materials, ensuring premium quality and timeless elegance. Perfect for special occasions or daily wear, this bangle combines classic design with modern appeal.`}
+                {product.description || `Exquisite handcrafted ${product.name.toLowerCase()} from our ${product.category.toLowerCase()} collection. Each piece is carefully crafted using traditional techniques and finest materials, ensuring premium quality and timeless elegance. Perfect for special occasions or daily wear, this bangle combines classic design with modern appeal.`}
               </div>
               <button
                 onClick={() => setShowFullDescription(!showFullDescription)}
@@ -415,7 +384,7 @@ Please confirm availability and share payment details. Thank you!`;
         </div>
 
         {/* Related Products */}
-        {displayRelatedProducts && displayRelatedProducts.length > 0 && (
+        {displayRelatedProducts.length > 0 && (
           <div className="mt-16">
             <h2 className="text-2xl font-bold text-gray-800 mb-8">You might also like</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
@@ -460,4 +429,3 @@ Please confirm availability and share payment details. Thank you!`;
 };
 
 export default ProductDetailsPage;
-                  

@@ -14,7 +14,8 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  const categories = ['All', ...new Set(products.map(p => p.category))];
+  // Static categories
+  const categoryOptions = ['All', 'Bridal Bangles', 'Glass Bangles', 'Give Aways', 'Traditional', 'Hair Accessories'];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -58,13 +59,6 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
   const handleCancelForm = () => {
     setShowForm(false);
     setEditingProduct(null);
-  };
-
-  const handleToggleStock = (productId, currentStock) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      onUpdate(productId, { ...product, inStock: !currentStock });
-    }
   };
 
   const clearAllFilters = () => {
@@ -234,7 +228,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                       onChange={(e) => setSelectedCategory(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
                     >
-                      {categories.map(category => (
+                      {categoryOptions.map(category => (
                         <option key={category} value={category}>{category}</option>
                       ))}
                     </select>
@@ -282,7 +276,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
                 >
-                  {categories.map(category => (
+                  {categoryOptions.map(category => (
                     <option key={category} value={category}>{category}</option>
                   ))}
                 </select>

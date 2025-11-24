@@ -41,16 +41,16 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4">Contact Info</h4>
             <div className="space-y-3 text-gray-300">
               <div className="flex items-center space-x-2">
-                <Phone className="w-4 h-4" />
-                <span>+91 98765 43210</span>
+                  <Phone className="w-4 h-4" />
+                <span>+91 9180740 86883</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4" />
-                <span>info@thapasyabangles.com</span>
+                <span>thapasyabangles@gmail.com</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4" />
-                <span>Mumbai, Maharashtra</span>
+                <span>Mangalagiri, Andhra Pradesh</span>
               </div>
             </div>
           </div>
