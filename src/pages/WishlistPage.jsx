@@ -8,7 +8,8 @@ const WishlistPage = ({
   onAddToCart, 
   onProductClick, 
   onBack,
-  cartItems = []
+  cartItems = [],
+  onClearWishlist
 }) => {
   
   const isInCart = (productId) => {
@@ -219,16 +220,16 @@ const WishlistPage = ({
               Add All Available to Cart
             </button>
             
-            <button
-              onClick={() => {
-                if (window.confirm('Are you sure you want to clear your entire wishlist?')) {
-                  wishlistItems.forEach(item => onRemoveFromWishlist(item.id));
-                }
-              }}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium transition-colors text-sm"
-            >
-              Clear Wishlist
-            </button>
+<button
+  onClick={() => {
+    if (window.confirm('Are you sure you want to clear your entire wishlist?')) {
+      onClearWishlist && onClearWishlist(); // Use the new prop
+    }
+  }}
+  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium transition-colors text-sm"
+>
+  Clear Wishlist
+</button>
             
             <button
               onClick={handleShare}

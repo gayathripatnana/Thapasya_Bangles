@@ -65,7 +65,7 @@ const Header = ({
   );
 
   return (
-    <header className="bg-gradient-to-r from-yellow-900 to-gray-900 text-white shadow-lg sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-gray-900 to-gray-900 text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           {/* Brand Logo */}
@@ -75,12 +75,12 @@ const Header = ({
           >
             {/* Replace ShoppingBag with your logo */}
             <img 
-              src={convertGoogleDriveUrl("https://drive.google.com/file/d/11Q3MrC8W2U9L5q97g3I-s5IfTfGmVC3u/view?usp=sharing")} 
-              alt="Thapasya Bangles Logo" 
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
-            />
+                src={convertGoogleDriveUrl("https://drive.google.com/file/d/11Q3MrC8W2U9L5q97g3I-s5IfTfGmVC3u/view?usp=sharing")}
+                alt="Thapasya Bangles Logo"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-yellow-500"
+              />
             <div>
-              <h1 className="text-lg sm:text-2xl font-bold leading-tight">
+              <h1 className="text-lg sm:text-2xl font-bold leading-tight text-yellow-500">
                 Thapasya Bangles
               </h1>
               <p className="text-xs sm:text-sm opacity-90 hidden xs:block">

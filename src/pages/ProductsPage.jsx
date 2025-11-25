@@ -4,7 +4,8 @@ import { Search, Filter, Package, SlidersHorizontal } from 'lucide-react';
 import ProductCard from '../components/product/ProductCard';
 import { subscribeToCategoriesUpdates } from '../utils/helpers';
 
-const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems, cartItems, initialCategory = 'all' }) => {
+
+const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems,onRemoveFromWishlist, cartItems, initialCategory = 'all',  setCurrentView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState('name');
@@ -300,11 +301,13 @@ const categoryOptions = [
                 isAdmin={false}
                 onProductClick={onProductClick}
                 onAddToWishlist={onAddToWishlist}
+                onRemoveFromWishlist={onRemoveFromWishlist}
                 onAddToCart={onAddToCart}
                 isInWishlist={isInWishlist(product.id)}
                 isInCart={isInCart(product.id)}
                 wishlistItems={wishlistItems}
                 cartItems={cartItems}
+                navigateToCart={() => setCurrentView('cart')}
               />
             ))}
           </div>

@@ -1,4 +1,4 @@
-// App.js - Updated with Firebase integration
+// App.js - Updated with Firebase integration for cart and wishlist
 import React, { useState, useEffect } from 'react';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
@@ -20,6 +20,21 @@ import {
   subscribeToProductsUpdates,
   subscribeToCategoriesUpdates
 } from './utils/helpers';
+
+// ADD THESE CART AND WISHLIST IMPORTS
+import { 
+  addToCart, 
+  removeFromCart, 
+  updateCartQuantity, 
+  getCart 
+} from './utils/cartHelpers';
+import { 
+  addToWishlist, 
+  removeFromWishlist, 
+  getWishlist, 
+  clearWishlist 
+} from './utils/wishlistHelpers';
+
 import './App.css';
 
 function App() {
@@ -43,6 +58,21 @@ function App() {
       setIsLoggedIn(true);
       // Check if admin based on email
       setIsAdmin(userData.email === 'thapasyabangles@gmail.com');
+      
+      // Load user's cart and wishlist if logged in
+      if (userData.uid) {
+        const loadUserData = async () => {
+          try {
+            const userCart = await getCart(userData.uid);
+            const userWishlist = await getWishlist(userData.uid);
+            setCartItems(userCart);
+            setWishlistItems(userWishlist);
+          } catch (error) {
+            console.error('Error loading user data:', error);
+          }
+        };
+        loadUserData();
+      }
     }
     setLoading(false);
   }, []);
@@ -61,13 +91,17 @@ function App() {
     let userData;
     
     if (isGoogleAuth) {
-      userData = googleUser;
+      userData = {
+        ...googleUser,
+        uid: googleUser.uid
+      };
     } else {
       // Email/password login
       userData = {
         email: email,
         name: email.split('@')[0],
-        isGoogleAuth: false
+        isGoogleAuth: false,
+        uid: email // Using email as UID fallback, you should get actual UID from Firebase Auth
       };
     }
 
@@ -81,6 +115,28 @@ function App() {
     // Save to localStorage
     localStorage.setItem('thapasyaUser', JSON.stringify(userData));
     
+    // Load user's cart and wishlist after login
+    const loadUserData = async () => {
+      try {
+        const userCart = await getCart(userData.uid);
+        const userWishlist = await getWishlist(userData.uid);
+        setCartItems(userCart);
+        setWishlistItems(userWishlist);
+      } catch (error) {
+        console.error('Error loading user data after login:', error);
+      }
+    };
+    loadUserData();
+    
+    // Check if there's a product to add to cart after login
+    if (selectedProductId) {
+      const productToAdd = products.find(p => p.id === selectedProductId);
+      if (productToAdd) {
+        handleAddToCart(productToAdd);
+      }
+      setSelectedProductId(null);
+    }
+    
     // Redirect based on role
     setCurrentView(adminUser ? 'admin-dashboard' : 'home');
     
@@ -92,12 +148,16 @@ function App() {
     let userData;
     
     if (isGoogleAuth) {
-      userData = formData;
+      userData = {
+        ...formData,
+        uid: formData.uid
+      };
     } else {
       userData = {
         name: formData.name,
         email: formData.email,
-        isGoogleAuth: false
+        isGoogleAuth: false,
+        uid: formData.email // Using email as UID fallback
       };
     }
 
@@ -121,6 +181,8 @@ function App() {
     setIsLoggedIn(false);
     setIsAdmin(false);
     setUser(null);
+    setCartItems([]);
+    setWishlistItems([]);
     localStorage.removeItem('thapasyaUser');
     setCurrentView('home');
   };
@@ -186,46 +248,115 @@ function App() {
     ));
   };
 
-  // Cart functions
-  const handleAddToCart = (product) => {
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
-      if (existingItem) {
-        return prevItems.map(item =>
-          item.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 } 
-            : item
-        );
-      } else {
-        return [...prevItems, { ...product, quantity: 1 }];
-      }
-    });
+  // Cart functions with Firebase integration
+  const handleAddToCart = async (product) => {
+    // Check if user is logged in
+    if (!isLoggedIn) {
+      // Store the product temporarily and redirect to login
+      setSelectedProductId(product.id);
+      setCurrentView('login');
+      return;
+    }
+
+    try {
+      await addToCart(user.uid, product);
+      // Update local state
+      setCartItems(prevItems => {
+        const existingItem = prevItems.find(item => item.id === product.id);
+        if (existingItem) {
+          return prevItems.map(item =>
+            item.id === product.id 
+              ? { ...item, quantity: item.quantity + 1 } 
+              : item
+          );
+        } else {
+          return [...prevItems, { ...product, quantity: 1 }];
+        }
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Error adding product to cart');
+    }
   };
 
-  const handleUpdateCartQuantity = (productId, quantity) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === productId ? { ...item, quantity } : item
-      ).filter(item => item.quantity > 0)
-    );
+  const handleUpdateCartQuantity = async (productId, quantity) => {
+    if (!isLoggedIn) return;
+    
+    try {
+      await updateCartQuantity(user.uid, productId, quantity);
+      // Update local state
+      setCartItems(prevItems =>
+        prevItems.map(item =>
+          item.id === productId ? { ...item, quantity } : item
+        ).filter(item => item.quantity > 0)
+      );
+    } catch (error) {
+      console.error('Error updating cart quantity:', error);
+      alert('Error updating cart quantity');
+    }
   };
 
-  const handleRemoveFromCart = (productId) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+  const handleRemoveFromCart = async (productId) => {
+    if (!isLoggedIn) return;
+    
+    try {
+      await removeFromCart(user.uid, productId);
+      // Update local state
+      setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      alert('Error removing product from cart');
+    }
   };
 
-  // Wishlist functions
-  const handleAddToWishlist = (product) => {
-    setWishlistItems(prevItems => {
-      if (prevItems.some(item => item.id === product.id)) {
-        return prevItems;
-      }
-      return [...prevItems, product];
-    });
+  // Wishlist functions with Firebase integration
+  const handleAddToWishlist = async (product) => {
+    // Check if user is logged in
+    if (!isLoggedIn) {
+      // Store the product temporarily and redirect to login
+      setSelectedProductId(product.id);
+      setCurrentView('login');
+      return;
+    }
+
+    try {
+      await addToWishlist(user.uid, product);
+      // Update local state
+      setWishlistItems(prevItems => {
+        if (prevItems.some(item => item.id === product.id)) {
+          return prevItems;
+        }
+        return [...prevItems, product];
+      });
+    } catch (error) {
+      console.error('Error adding to wishlist:', error);
+      alert('Error adding product to wishlist');
+    }
   };
 
-  const handleRemoveFromWishlist = (productId) => {
-    setWishlistItems(prevItems => prevItems.filter(item => item.id !== productId));
+  const handleRemoveFromWishlist = async (productId) => {
+    if (!isLoggedIn) return;
+    
+    try {
+      await removeFromWishlist(user.uid, productId);
+      // Update local state
+      setWishlistItems(prevItems => prevItems.filter(item => item.id !== productId));
+    } catch (error) {
+      console.error('Error removing from wishlist:', error);
+      alert('Error removing product from wishlist');
+    }
+  };
+
+  const handleClearWishlist = async () => {
+    if (!isLoggedIn) return;
+    
+    try {
+      await clearWishlist(user.uid);
+      setWishlistItems([]);
+    } catch (error) {
+      console.error('Error clearing wishlist:', error);
+      alert('Error clearing wishlist');
+    }
   };
 
   const handleMoveToCart = (product) => {
@@ -260,9 +391,11 @@ function App() {
           products={products} 
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
+          onRemoveFromWishlist={handleRemoveFromWishlist}
           onAddToCart={handleAddToCart}
           wishlistItems={wishlistItems}
           cartItems={cartItems}
+          setCurrentView={setCurrentView}
         />;
       case 'product-details':
         const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -270,9 +403,11 @@ function App() {
           product={selectedProduct} 
           onBack={handleBackToProducts}
           onAddToWishlist={handleAddToWishlist}
+          onRemoveFromWishlist={handleRemoveFromWishlist}
           onAddToCart={handleAddToCart}
           wishlistItems={wishlistItems}
           cartItems={cartItems}
+          navigateToCart={() => setCurrentView('cart')}
         />;
       case 'login':
         return <LoginPage 
@@ -298,6 +433,8 @@ function App() {
           onAddToCart={handleMoveToCart}
           onProductClick={handleProductClick}
           onBack={() => setCurrentView('products')}
+          cartItems={cartItems}
+          onClearWishlist={handleClearWishlist}
         />;
       case 'admin-dashboard':
         return isAdmin ? (

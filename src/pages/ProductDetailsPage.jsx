@@ -1,4 +1,4 @@
-// pages/ProductDetailsPage.jsx - Updated with Firebase integration
+// pages/ProductDetailsPage.jsx - Updated with multiple images support
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
@@ -8,12 +8,14 @@ const ProductDetailsPage = ({
   onBack, 
   onAddToCart, 
   onAddToWishlist, 
+  onRemoveFromWishlist,
   isInWishlist = false,
   isInCart = false,
   wishlistItems,
   cartItems,
   relatedProducts = [],
-  onProductClick
+  onProductClick,
+  navigateToCart
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -56,13 +58,10 @@ const ProductDetailsPage = ({
     );
   }
 
-  // Mock multiple images (in real app, product would have multiple images)
-  const productImages = [
-    product.image,
-    product.image, // You can replace with actual multiple images
-    product.image,
-    product.image
-  ];
+  // Use multiple images if available, otherwise use single image
+  const productImages = product.images && product.images.length > 0 
+    ? product.images 
+    : [product.image];
 
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
@@ -74,6 +73,38 @@ const ProductDetailsPage = ({
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) {
       onAddToCart(product);
+    }
+  };
+
+  const handleWishlistClick = () => {
+    // Check if product is already in wishlist
+    const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
+    
+    if (productInWishlist) {
+      // If already in wishlist, remove it
+      if (onRemoveFromWishlist) {
+        onRemoveFromWishlist(product.id);
+      }
+    } else {
+      // If not in wishlist, add it
+      if (onAddToWishlist) {
+        onAddToWishlist(product);
+      }
+    }
+  };
+
+  const handleCartClick = () => {
+    // Check if product is already in cart
+    const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
+    
+    if (productInCart) {
+      // If already in cart, navigate to cart page
+      if (navigateToCart) {
+        navigateToCart();
+      }
+    } else {
+      // If not in cart, add it
+      handleAddToCart();
     }
   };
 
@@ -186,39 +217,41 @@ Please confirm availability and share payment details. Thank you!`;
 
               {/* Wishlist Button */}
               <button
-                onClick={() => onAddToWishlist && onAddToWishlist(product)}
+                onClick={handleWishlistClick}
                 className={`absolute top-4 right-4 p-3 rounded-full shadow-lg transition-all duration-300 ${
                   productInWishlist 
-                    ? 'bg-yellow-500 text-white scale-110' 
+                    ? 'bg-red-500 text-white scale-110' 
                     : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
                 aria-label={productInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
               >
-                <Heart className={`w-5 h-5 ${productInWishlist ? 'fill-current' : ''}`} />
+                <Heart className={`w-5 h-5 ${productInWishlist ? 'fill-current text-white' : ''}`} />
               </button>
             </div>
 
             {/* Thumbnail Images */}
-            <div className="grid grid-cols-4 gap-3">
-              {productImages.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                    selectedImage === index 
-                      ? 'border-yellow-500 ring-2 ring-yellow-200' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <img
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </button>
-              ))}
-            </div>
+            {productImages.length > 1 && (
+              <div className="grid grid-cols-4 gap-3">
+                {productImages.map((image, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedImage(index)}
+                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                      selectedImage === index 
+                        ? 'border-yellow-500 ring-2 ring-yellow-200' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <img
+                      src={image}
+                      alt={`${product.name} ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Details */}
@@ -298,16 +331,15 @@ Please confirm availability and share payment details. Thank you!`;
 
                   {/* Add to Cart Button */}
                   <button
-                    onClick={handleAddToCart}
+                    onClick={handleCartClick}
                     className={`w-full py-4 px-6 rounded-lg font-semibold transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 ${
                       productInCart 
-                        ? 'bg-green-500 text-white cursor-default'
+                        ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
                         : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-purple-700'
                     }`}
-                    disabled={productInCart}
                   >
                     <ShoppingCart className="w-5 h-5" />
-                    <span>{productInCart ? 'Added to Cart' : 'Add to Cart'}</span>
+                    <span>{productInCart ? 'View Cart' : 'Add to Cart'}</span>
                   </button>
                 </>
               ) : (
@@ -377,6 +409,10 @@ Please confirm availability and share payment details. Thank you!`;
                 <div>
                   <span className="text-gray-500">Weight:</span>
                   <span className="ml-2 font-medium">25-30g</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Images:</span>
+                  <span className="ml-2 font-medium">{productImages.length}</span>
                 </div>
               </div>
             </div>

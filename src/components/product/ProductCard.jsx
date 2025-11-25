@@ -9,11 +9,13 @@ const ProductCard = ({
   onDelete, 
   onProductClick, 
   onAddToWishlist, 
+  onRemoveFromWishlist,
   onAddToCart,
   isInWishlist = false,
   isInCart = false,
   wishlistItems,
-  cartItems
+  cartItems,
+  navigateToCart // ADD THIS PROP FOR NAVIGATION
 }) => {
   const handleCardClick = (e) => {
     // Prevent navigation if clicking on admin buttons or action buttons
@@ -29,15 +31,39 @@ const ProductCard = ({
 
   const handleWishlistClick = (e) => {
     e.stopPropagation();
-    if (onAddToWishlist) {
-      onAddToWishlist(product);
+    
+    // Check if product is already in wishlist
+    const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
+    
+    if (productInWishlist) {
+      // If already in wishlist, remove it
+      if (onRemoveFromWishlist) {
+        onRemoveFromWishlist(product.id);
+      }
+    } else {
+      // If not in wishlist, add it
+      if (onAddToWishlist) {
+        onAddToWishlist(product);
+      }
     }
   };
 
   const handleCartClick = (e) => {
     e.stopPropagation();
-    if (onAddToCart) {
-      onAddToCart(product);
+    
+    // Check if product is already in cart
+    const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
+    
+    if (productInCart) {
+      // If already in cart, navigate to cart page
+      if (navigateToCart) {
+        navigateToCart();
+      }
+    } else {
+      // If not in cart, add it
+      if (onAddToCart) {
+        onAddToCart(product);
+      }
     }
   };
 
@@ -57,11 +83,11 @@ const ProductCard = ({
       <div className="relative">
         <div className="aspect-square overflow-hidden">
           <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-            loading="lazy"
-          />
+              src={product.images && product.images.length > 0 ? product.images[0] : product.image}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              loading="lazy"
+            />
           
           {/* Stock Status Overlay */}
           {!product.inStock && (
@@ -79,12 +105,12 @@ const ProductCard = ({
           <button 
             className={`action-button absolute top-2 right-2 p-2 rounded-full shadow-md transition-all duration-300 ${
               productInWishlist 
-                ? 'bg-white text-yellow-500 scale-110' 
+                ? 'bg-red-500 text-white scale-110' 
                 : 'bg-white text-gray-600 hover:bg-gray-50'
             }`}
             onClick={handleWishlistClick}
           >
-            <Heart className={`w-4 h-4 ${productInWishlist ? 'fill-current text-yellow-500' : ''}`} />
+            <Heart className={`w-4 h-4 ${productInWishlist ? 'fill-current text-white' : ''}`} />
           </button>
         )}
         
@@ -159,7 +185,7 @@ const ProductCard = ({
                   ? 'bg-green-500 text-white' 
                   : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
-              aria-label={productInCart ? 'In cart' : 'Add to cart'}
+              aria-label={productInCart ? 'In cart - View cart' : 'Add to cart'}
             >
               <ShoppingCart className="w-4 h-4" />
             </button>
@@ -173,11 +199,13 @@ const ProductCard = ({
               <button
                 onClick={handleCartClick}
                 className={`action-button w-full py-2 px-4 rounded-lg font-medium transition-all duration-300 flex items-center justify-center text-sm ${
-                  productInCart ? 'bg-green-500 text-white' : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                  productInCart 
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
                 }`}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
-                {productInCart ? 'Added to Cart' : 'Add to Cart'}
+                {productInCart ? 'View Cart' : 'Add to Cart'}
               </button>
             ) : (
               <button

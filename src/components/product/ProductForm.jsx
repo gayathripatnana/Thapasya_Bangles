@@ -1,12 +1,13 @@
 // components/product/ProductForm.jsx
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, X, Upload, Star } from 'lucide-react';
+import { CheckCircle2, X, Upload, Star, Plus } from 'lucide-react';
 
 const ProductForm = ({ product, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     image: '',
+    images: [],
     description: '',
     category: '',
     rating: 4.5,
@@ -20,7 +21,8 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     if (product) {
       setFormData({
         ...product,
-        price: product.price.toString()
+        price: product.price.toString(),
+        images: product.images || [product.image]
       });
     }
   }, [product]);
@@ -40,10 +42,17 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
       newErrors.price = 'Price cannot exceed ₹1,00,000';
     }
     
-    if (!formData.image.trim()) {
-      newErrors.image = 'Image URL is required';
-    } else if (!isValidUrl(formData.image)) {
-      newErrors.image = 'Please enter a valid image URL';
+    // Validate multiple images
+    if (!formData.images || formData.images.length === 0) {
+      newErrors.images = 'At least one image is required';
+    } else {
+      formData.images.forEach((img, index) => {
+        if (!img.trim()) {
+          newErrors.images = `Image ${index + 1} URL is required`;
+        } else if (!isValidUrl(img)) {
+          newErrors.images = `Image ${index + 1} URL is invalid`;
+        }
+      });
     }
     
     if (!formData.description.trim()) {
@@ -82,17 +91,21 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     
     // Simulate API call delay
     setTimeout(() => {
-      onSubmit({
+      const submitData = {
         ...formData,
         price: parseFloat(formData.price),
-        rating: parseFloat(formData.rating)
-      });
+        rating: parseFloat(formData.rating),
+        image: formData.images[0] // Set first image as main image for backward compatibility
+      };
+      
+      onSubmit(submitData);
       
       if (!product) {
         setFormData({
           name: '',
           price: '',
           image: '',
+          images: [],
           description: '',
           category: '',
           rating: 4.5,
@@ -211,30 +224,54 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             )}
           </div>
           
-          {/* Image URL */}
+          {/* Multiple Images URLs */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image URL * (Google Drive URL supported)
+              Product Images * (Add multiple image URLs)
             </label>
-            <div className="flex space-x-2">
-              <input
-                type="url"
-                value={formData.image}
-                onChange={(e) => handleInputChange('image', e.target.value)}
-                className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
-                  errors.image 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-gray-300 focus:ring-yellow-500'
-                }`}
-                placeholder="https://drive.google.com/file/d/..."
+            <div className="space-y-2">
+              {formData.images.map((img, index) => (
+                <div key={index} className="flex space-x-2">
+                  <input
+                    type="url"
+                    value={img}
+                    onChange={(e) => {
+                      const newImages = [...formData.images];
+                      newImages[index] = e.target.value;
+                      handleInputChange('images', newImages);
+                    }}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    placeholder="https://drive.google.com/file/d/..."
+                    disabled={isSubmitting}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newImages = formData.images.filter((_, i) => i !== index);
+                      handleInputChange('images', newImages);
+                    }}
+                    className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    disabled={isSubmitting}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => handleInputChange('images', [...formData.images, ''])}
+                className="flex items-center space-x-2 px-4 py-3 border border-dashed border-gray-300 rounded-lg hover:border-yellow-500 transition-colors"
                 disabled={isSubmitting}
-              />
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Another Image</span>
+              </button>
             </div>
-            {errors.image && (
-              <p className="text-red-500 text-sm mt-1">{errors.image}</p>
+            {errors.images && (
+              <p className="text-red-500 text-sm mt-1">{errors.images}</p>
             )}
             <p className="text-xs text-gray-500 mt-1">
-              Paste Google Drive link (e.g., https://drive.google.com/file/d/ID/view?usp=drive_link)
+              Paste Google Drive links (e.g., https://drive.google.com/file/d/ID/view?usp=drive_link)
             </p>
           </div>
           
@@ -330,29 +367,35 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
           </div>
         </div>
         
-        {/* Image Preview */}
-        {formData.image && isValidUrl(formData.image) && (
+        {/* Multiple Images Preview */}
+        {formData.images.some(img => img && isValidUrl(img)) && (
           <div className="mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image Preview
+              Images Preview
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-              <img
-                src={(() => {
-                  const url = formData.image;
-                  // Convert Google Drive URLs
-                  if (url.includes('drive.google.com/file/d/')) {
-                    const fileId = url.split('/d/')[1].split('/')[0];
-                    return `https://lh3.googleusercontent.com/d/${fileId}=s1000`;
-                  }
-                  return url;
-                })()}
-                alt="Preview"
-                className="w-32 h-32 object-cover rounded-lg mx-auto"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {formData.images.map((img, index) => (
+                isValidUrl(img) && (
+                  <div key={index} className="border-2 border-dashed border-gray-300 rounded-lg p-2">
+                    <img
+                      src={(() => {
+                        const url = img;
+                        if (url.includes('drive.google.com/file/d/')) {
+                          const fileId = url.split('/d/')[1].split('/')[0];
+                          return `https://lh3.googleusercontent.com/d/${fileId}=s200`;
+                        }
+                        return url;
+                      })()}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-24 object-cover rounded-lg"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 text-center mt-1">Image {index + 1}</p>
+                  </div>
+                )
+              ))}
             </div>
           </div>
         )}
