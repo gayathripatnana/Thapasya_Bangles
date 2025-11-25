@@ -1,9 +1,10 @@
-// pages/CartPage.jsx - Updated with WhatsApp Checkout Integration
-import React, { useState } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Tag, Truck, Shield, RotateCcw, Star, Phone, User, Mail, MapPin } from 'lucide-react';
+// pages/CartPage.jsx - Updated with Fixed Sticky Order Summary
+import React, { useState, useEffect } from 'react';
+import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Tag, Truck, Shield, RotateCcw, Star, Phone, User, Mail, MapPin, Ruler } from 'lucide-react';
 import { proceedToWhatsAppCheckout } from '../utils/whatsappCheckout';
+import { getProductsByCategory } from '../utils/helpers';
 
-const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
+const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize }) => {
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromoCode, setAppliedPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
@@ -14,6 +15,47 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
     email: '',
     address: ''
   });
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [showSizeModal, setShowSizeModal] = useState(null);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
+  // Load related products based on cart items
+  useEffect(() => {
+    const loadRelatedProducts = async () => {
+      if (cartItems.length > 0) {
+        setLoadingRelated(true);
+        try {
+          // Get categories from cart items and pick the most common one
+          const categories = cartItems.map(item => item.category);
+          const categoryCount = {};
+          categories.forEach(category => {
+            categoryCount[category] = (categoryCount[category] || 0) + 1;
+          });
+          
+          const mostCommonCategory = Object.keys(categoryCount).reduce((a, b) => 
+            categoryCount[a] > categoryCount[b] ? a : b
+          );
+          
+          if (mostCommonCategory) {
+            const related = await getProductsByCategory(mostCommonCategory);
+            // Filter out products already in cart and limit to 8 for better variety
+            const filteredRelated = related
+              .filter(p => !cartItems.some(item => item.id === p.id))
+              .slice(0, 8);
+            setRelatedProducts(filteredRelated);
+          }
+        } catch (error) {
+          console.error('Error loading related products:', error);
+        } finally {
+          setLoadingRelated(false);
+        }
+      } else {
+        setRelatedProducts([]);
+      }
+    };
+
+    loadRelatedProducts();
+  }, [cartItems]);
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryCharges = subtotal > 1500 ? 0 : 99;
@@ -85,6 +127,26 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
     proceedToWhatsAppCheckout(cartItems, orderSummary, null);
   };
 
+const handleRelatedProductClick = (productId) => {
+  if (onProductClick) {
+    onProductClick(productId);
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+  const handleAddRelatedToCart = (product) => {
+    if (onAddToCart) {
+      onAddToCart(product);
+    }
+  };
+
+  const handleSizeChange = (productId, newSize) => {
+    if (onUpdateCartSize) {
+      onUpdateCartSize(productId, newSize);
+    }
+    setShowSizeModal(null);
+  };
+
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
@@ -126,9 +188,9 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
           <span>Continue Shopping</span>
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+          {/* Cart Items - Takes 2/3 on desktop */}
+          <div className="lg:flex-1 lg:max-w-[66.666%]">
             <div className="bg-white rounded-lg shadow-md">
               <div className="p-4 sm:p-6 border-b border-gray-200">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center space-x-2">
@@ -138,9 +200,15 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
               </div>
               <div className="divide-y divide-gray-200">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="p-4 sm:p-6">
+                  <div 
+                    key={`${item.id}-${item.selectedSize}`} 
+                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors" // Remove cursor-pointer
+                  >
                     <div className="flex items-start space-x-3 sm:space-x-4">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
+                      <div 
+                        className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 cursor-pointer"
+                        onClick={() => handleRelatedProductClick(item.id)}
+                      >
                         <img
                           src={item.image}
                           alt={item.name}
@@ -152,6 +220,20 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 line-clamp-2">{item.name}</h3>
                         <p className="text-gray-600 text-sm mb-2">{item.category}</p>
+                        
+                        {/* Size Display and Edit */}
+                        {item.sizes && item.sizes.length > 0 && (
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-xs text-gray-500">Size:</span>
+                            <button
+                              onClick={() => setShowSizeModal(item.id)}
+                              className="flex items-center space-x-1 text-xs font-medium text-blue-600 hover:text-blue-700 border border-blue-200 rounded px-2 py-1 bg-blue-50 hover:bg-blue-100 transition-colors"
+                            >
+                              <Ruler className="w-3 h-3" />
+                              <span>{item.selectedSize || 'Select Size'}</span>
+                            </button>
+                          </div>
+                        )}
                         
                         {/* Rating */}
                         <div className="flex items-center mb-2">
@@ -209,21 +291,131 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                 ))}
               </div>
               <div className="p-4 sm:p-6 border-t border-gray-200">
-      <button
-        onClick={onBack}
-        className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-      >
-        <Plus className="w-5 h-5" />
-        <span>Add More Items</span>
-      </button>
-    </div>
+                <button
+                  onClick={onBack}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add More Items</span>
+                </button>
+              </div>
+            </div>
 
+            {/* Enhanced Recommended Products Section */}
+            {relatedProducts.length > 0 && (
+              <div className="mt-8 bg-white rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">Recommended for You</h3>
+                    <p className="text-gray-600 text-sm mt-1">Products you might like based on your cart</p>
+                  </div>
+                  <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-500">
+                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                    <span>Curated just for you</span>
+                  </div>
+                </div>
+                
+                {loadingRelated ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+                    <span className="ml-3 text-gray-600">Loading recommendations...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6">
+                    {relatedProducts.map((product) => (
+                      <div
+  key={product.id}
+  className="bg-white border border-gray-200 rounded-lg hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group"
+>
+                        <div 
+  className="relative aspect-square overflow-hidden rounded-t-lg cursor-pointer"
+  onClick={() => handleRelatedProductClick(product.id)}
+>
+                          <img
+                            src={product.images && product.images.length > 0 ? product.images[0] : product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                          />
+                          {/* Quick Add Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddRelatedToCart(product);
+                            }}
+                            className="absolute bottom-2 right-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0"
+                            aria-label="Add to cart"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </button>
+                          
+                          {/* Rating Badge */}
+                          <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
+                            <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                            <span>{product.rating}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="p-3 sm:p-4">
+                          <h4 className="font-semibold text-gray-800 text-sm sm:text-base mb-2 line-clamp-2 group-hover:text-yellow-600 transition-colors">
+                            {product.name}
+                          </h4>
+                          
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-lg font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
+                              <span className="text-gray-500 text-sm line-through hidden sm:block">
+                                ₹{(product.price * 1.2).toLocaleString()}
+                              </span>
+                            </div>
+                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full hidden sm:inline-block">
+                              {Math.round(20)}% off
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddRelatedToCart(product);
+                            }}
+                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2 sm:hidden group-hover:flex"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>Add to Cart</span>
+                          </button>
+                          
+                          <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                            <span className="truncate">{product.category}</span>
+                            <span className="flex items-center space-x-1">
+                              <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                              <span>{product.rating}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Order Notes */}
+            <div className="mt-6 bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Order Notes (Optional)</h3>
+              <textarea
+                placeholder="Any special instructions for your order..."
+                rows="3"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none text-sm"
+              ></textarea>
+              <p className="text-xs text-gray-500 mt-2">
+                Note: These instructions will be included in your WhatsApp order message
+              </p>
             </div>
           </div>
 
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md sticky top-24">
+          {/* Order Summary - Takes 1/3 on desktop, fixed positioning */}
+          <div className="lg:w-1/3 lg:max-w-[33.333%]">
+            <div className="bg-white rounded-lg shadow-md sticky top-4 lg:fixed lg:right-8 lg:w-96 lg:top-4 z-10 max-h-[85vh] overflow-y-auto">
               <div className="p-4 sm:p-6 border-b border-gray-200">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-800">Order Summary</h3>
               </div>
@@ -399,8 +591,6 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                   )}
                 </div>
 
-               
-
                 {/* Trust Badges */}
                 <div className="pt-4 border-t border-gray-200">
                   <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 text-center">
@@ -426,48 +616,48 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack }) => {
                 </div>
               </div>
             </div>
-
-            {/* Cart Summary for Mobile */}
-            <div className="mt-6 bg-gradient-to-r from-yellow-50 to-gray-50 rounded-lg p-4 lg:hidden">
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <div className="text-lg font-bold text-yellow-600">{cartItems.length}</div>
-                  <div className="text-xs text-gray-600">Items</div>
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-yellow-700">
-                    {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
-                  </div>
-                  <div className="text-xs text-gray-600">Quantity</div>
-                </div>
-              </div>
-            </div>
+            
+            {/* Spacer for fixed positioning on desktop */}
+            <div className="hidden lg:block" style={{ height: 'calc(85vh + 2rem)' }}></div>
           </div>
         </div>
-
-        {/* Recommended Products Section */}
-        <div className="mt-8 bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">You might also like</h3>
-          <div className="text-center py-8 text-gray-500">
-            <p className="text-sm">Recommended products will appear here based on your cart items</p>
-          </div>
-        </div>
-
-        {/* Order Notes */}
-        <div className="mt-6 bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Order Notes (Optional)</h3>
-          <textarea
-            placeholder="Any special instructions for your order..."
-            rows="3"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none text-sm"
-          ></textarea>
-          <p className="text-xs text-gray-500 mt-2">
-            Note: These instructions will be included in your WhatsApp order message
-          </p>
-        </div>
-
-       
       </div>
+
+      {/* Size Selection Modal */}
+      {showSizeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div 
+            className="bg-white rounded-lg p-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Change Size</h3>
+            <p className="text-gray-600 text-sm mb-4">Select a new size for this product</p>
+            
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {cartItems.find(item => item.id === showSizeModal)?.sizes?.map(size => (
+                <button
+                  key={size}
+                  onClick={() => handleSizeChange(showSizeModal, size)}
+                  className={`py-2 px-3 rounded border transition-colors ${
+                    cartItems.find(item => item.id === showSizeModal)?.selectedSize === size
+                      ? 'bg-yellow-500 text-white border-yellow-500'
+                      : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => setShowSizeModal(null)}
+              className="w-full mt-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -77,3 +77,21 @@ export const getCart = async (userId) => {
   }
   return [];
 };
+
+// Add to cartHelpers.js
+export const updateCartSize = async (userId, productId, newSize) => {
+  const cartRef = doc(db, 'carts', userId);
+  const cartSnap = await getDoc(cartRef);
+  
+  if (cartSnap.exists()) {
+    const cartData = cartSnap.data();
+    const updatedItems = cartData.items.map(item =>
+      item.id === productId ? { ...item, selectedSize: newSize } : item
+    );
+    
+    await updateDoc(cartRef, { 
+      items: updatedItems,
+      updatedAt: new Date()
+    });
+  }
+};

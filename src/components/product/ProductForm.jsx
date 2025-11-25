@@ -11,7 +11,18 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     description: '',
     category: '',
     rating: 4.5,
-    inStock: true
+    inStock: true,
+    sizes: ['2.0', '2.2', '2.4', '2.6', '2.8', '2.10', 'Children'],
+    sizeChart: {
+      '2.0': 'Small - Fits wrist circumference 13-14cm',
+      '2.2': 'Small-Medium - Fits wrist circumference 14-15cm', 
+      '2.4': 'Medium - Fits wrist circumference 15-16cm',
+      '2.6': 'Medium-Large - Fits wrist circumference 16-17cm',
+      '2.8': 'Large - Fits wrist circumference 17-18cm',
+      '2.10': 'Extra Large - Fits wrist circumference 18-19cm',
+      'Children': 'Kids Size - Fits wrist circumference 10-12cm'
+    },
+    isFeatured: false,
   });
   
   const [errors, setErrors] = useState({});
@@ -21,8 +32,19 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     if (product) {
       setFormData({
         ...product,
+        isFeatured: product.isFeatured || false,
         price: product.price.toString(),
-        images: product.images || [product.image]
+        images: product.images || [product.image],
+        sizes: product.sizes || ['2.0', '2.2', '2.4', '2.6', '2.8', '2.10', 'Children'],
+        sizeChart: product.sizeChart || {
+          '2.0': 'Small - Fits wrist circumference 13-14cm',
+          '2.2': 'Small-Medium - Fits wrist circumference 14-15cm',
+          '2.4': 'Medium - Fits wrist circumference 15-16cm',
+          '2.6': 'Medium-Large - Fits wrist circumference 16-17cm',
+          '2.8': 'Large - Fits wrist circumference 17-18cm',
+          '2.10': 'Extra Large - Fits wrist circumference 18-19cm',
+          'Children': 'Kids Size - Fits wrist circumference 10-12cm'
+        }
       });
     }
   }, [product]);
@@ -46,13 +68,17 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     if (!formData.images || formData.images.length === 0) {
       newErrors.images = 'At least one image is required';
     } else {
-      formData.images.forEach((img, index) => {
+      // Check each image URL
+      for (let i = 0; i < formData.images.length; i++) {
+        const img = formData.images[i];
         if (!img.trim()) {
-          newErrors.images = `Image ${index + 1} URL is required`;
+          newErrors.images = `Image ${i + 1} URL is required`;
+          break;
         } else if (!isValidUrl(img)) {
-          newErrors.images = `Image ${index + 1} URL is invalid`;
+          newErrors.images = `Image ${i + 1} URL is invalid`;
+          break;
         }
-      });
+      }
     }
     
     if (!formData.description.trim()) {
@@ -69,6 +95,10 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
       newErrors.rating = 'Rating must be between 1 and 5';
     }
     
+    if (!formData.sizes || formData.sizes.length === 0) {
+      newErrors.sizes = 'At least one size must be selected';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -80,6 +110,14 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     } catch (_) {
       return false;
     }
+  };
+
+  const convertGoogleDriveUrl = (url) => {
+    if (url.includes('drive.google.com/file/d/')) {
+      const fileId = url.split('/d/')[1].split('/')[0];
+      return `https://lh3.googleusercontent.com/d/${fileId}=s1000`;
+    }
+    return url;
   };
 
   const handleSubmit = async (e) => {
@@ -109,7 +147,17 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
           description: '',
           category: '',
           rating: 4.5,
-          inStock: true
+          inStock: true,
+          sizes: ['2.0', '2.2', '2.4', '2.6', '2.8', '2.10', 'Children'],
+          sizeChart: {
+            '2.0': 'Small - Fits wrist circumference 13-14cm',
+            '2.2': 'Small-Medium - Fits wrist circumference 14-15cm',
+            '2.4': 'Medium - Fits wrist circumference 15-16cm',
+            '2.6': 'Medium-Large - Fits wrist circumference 16-17cm',
+            '2.8': 'Large - Fits wrist circumference 17-18cm',
+            '2.10': 'Extra Large - Fits wrist circumference 18-19cm',
+            'Children': 'Kids Size - Fits wrist circumference 10-12cm'
+          }
         });
       }
       
@@ -124,6 +172,21 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     if (errors[field]) {
       setErrors({ ...errors, [field]: '' });
     }
+  };
+
+  const handleImageUrlChange = (index, value) => {
+    const newImages = [...formData.images];
+    newImages[index] = value;
+    handleInputChange('images', newImages);
+  };
+
+  const addImageField = () => {
+    handleInputChange('images', [...formData.images, '']);
+  };
+
+  const removeImageField = (index) => {
+    const newImages = formData.images.filter((_, i) => i !== index);
+    handleInputChange('images', newImages);
   };
 
   return (
@@ -224,53 +287,85 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             )}
           </div>
           
+          {/* Available Sizes */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Available Sizes *
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {['2.0', '2.2', '2.4', '2.6', '2.8', '2.10', 'Children'].map(size => (
+                <label key={size} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.sizes.includes(size)}
+                    onChange={(e) => {
+                      const newSizes = e.target.checked
+                        ? [...formData.sizes, size]
+                        : formData.sizes.filter(s => s !== size);
+                      handleInputChange('sizes', newSizes);
+                    }}
+                    className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-sm text-gray-700">{size}</span>
+                </label>
+              ))}
+            </div>
+            {errors.sizes && (
+              <p className="text-red-500 text-sm mt-1">{errors.sizes}</p>
+            )}
+          </div>
+
           {/* Multiple Images URLs */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Product Images * (Add multiple image URLs)
             </label>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {formData.images.map((img, index) => (
-                <div key={index} className="flex space-x-2">
-                  <input
-                    type="url"
-                    value={img}
-                    onChange={(e) => {
-                      const newImages = [...formData.images];
-                      newImages[index] = e.target.value;
-                      handleInputChange('images', newImages);
-                    }}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                    placeholder="https://drive.google.com/file/d/..."
-                    disabled={isSubmitting}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newImages = formData.images.filter((_, i) => i !== index);
-                      handleInputChange('images', newImages);
-                    }}
-                    className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                    disabled={isSubmitting}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                <div key={index} className="flex space-x-2 items-start">
+                  <div className="flex-1">
+                    <input
+                      type="url"
+                      value={img}
+                      onChange={(e) => handleImageUrlChange(index, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      placeholder="https://drive.google.com/file/d/..."
+                      disabled={isSubmitting}
+                    />
+                    {index === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        First image will be used as main product image
+                      </p>
+                    )}
+                  </div>
+                  {formData.images.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeImageField(index)}
+                      className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center"
+                      disabled={isSubmitting}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))}
+              
               <button
                 type="button"
-                onClick={() => handleInputChange('images', [...formData.images, ''])}
-                className="flex items-center space-x-2 px-4 py-3 border border-dashed border-gray-300 rounded-lg hover:border-yellow-500 transition-colors"
+                onClick={addImageField}
+                className="flex items-center space-x-2 px-4 py-3 border border-dashed border-gray-300 rounded-lg hover:border-yellow-500 transition-colors w-full justify-center"
                 disabled={isSubmitting}
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Another Image</span>
+                <span>Add Another Image URL</span>
               </button>
             </div>
             {errors.images && (
               <p className="text-red-500 text-sm mt-1">{errors.images}</p>
             )}
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-2">
               Paste Google Drive links (e.g., https://drive.google.com/file/d/ID/view?usp=drive_link)
             </p>
           </div>
@@ -375,21 +470,15 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {formData.images.map((img, index) => (
-                isValidUrl(img) && (
+                img && isValidUrl(img) && (
                   <div key={index} className="border-2 border-dashed border-gray-300 rounded-lg p-2">
                     <img
-                      src={(() => {
-                        const url = img;
-                        if (url.includes('drive.google.com/file/d/')) {
-                          const fileId = url.split('/d/')[1].split('/')[0];
-                          return `https://lh3.googleusercontent.com/d/${fileId}=s200`;
-                        }
-                        return url;
-                      })()}
+                      src={convertGoogleDriveUrl(img)}
                       alt={`Preview ${index + 1}`}
                       className="w-full h-24 object-cover rounded-lg"
                       onError={(e) => {
-                        e.target.style.display = 'none';
+                        e.target.src = 'https://via.placeholder.com/150?text=Invalid+URL';
+                        e.target.alt = 'Invalid Image URL';
                       }}
                     />
                     <p className="text-xs text-gray-500 text-center mt-1">Image {index + 1}</p>
@@ -399,6 +488,23 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             </div>
           </div>
         )}
+
+        {/* Featured Product Toggle */}
+<div className="mt-6">
+  <label className="flex items-center space-x-3">
+    <input
+      type="checkbox"
+      checked={formData.isFeatured}
+      onChange={(e) => handleInputChange('isFeatured', e.target.checked)}
+      className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+      disabled={isSubmitting}
+    />
+    <span className="text-sm font-medium text-gray-700">Set as Featured Product</span>
+  </label>
+  <p className="text-xs text-gray-500 mt-1">
+    Featured products will be displayed on the homepage
+  </p>
+</div>
         
         {/* Form Actions */}
         <div className="flex justify-end space-x-4 mt-8 pt-6 border-t">

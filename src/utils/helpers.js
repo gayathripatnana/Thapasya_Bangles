@@ -10,7 +10,9 @@ import {
   deleteDoc, 
   query, 
   orderBy,
-  onSnapshot 
+  onSnapshot,
+  arrayUnion,
+  arrayRemove 
 } from 'firebase/firestore';
 
 /**
@@ -427,4 +429,55 @@ export const subscribeToProductsUpdates = (callback) => {
     });
     callback(products);
   });
+};
+
+
+/**
+ * Add product to featured products
+ */
+export const addToFeaturedProducts = async (product) => {
+  try {
+    const featuredRef = doc(db, COLLECTIONS.FEATURED_PRODUCTS, DOCUMENTS.PRODUCTS);
+    const snapshot = await getDoc(featuredRef);
+    
+    let featuredProducts = [];
+    if (snapshot.exists()) {
+      featuredProducts = snapshot.data().products || [];
+    }
+    
+    // Remove if already exists (to avoid duplicates)
+    featuredProducts = featuredProducts.filter(p => p.id !== product.id);
+    
+    // Add the product
+    featuredProducts.push(product);
+    
+    await setDoc(featuredRef, { products: featuredProducts });
+    
+    return true;
+  } catch (error) {
+    console.error('Error adding to featured products:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove product from featured products
+ */
+export const removeFromFeaturedProducts = async (productId) => {
+  try {
+    const featuredRef = doc(db, COLLECTIONS.FEATURED_PRODUCTS, DOCUMENTS.PRODUCTS);
+    const snapshot = await getDoc(featuredRef);
+    
+    if (snapshot.exists()) {
+      const featuredProducts = snapshot.data().products || [];
+      const updatedProducts = featuredProducts.filter(p => p.id !== productId);
+      
+      await setDoc(featuredRef, { products: updatedProducts });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing from featured products:', error);
+    throw error;
+  }
 };

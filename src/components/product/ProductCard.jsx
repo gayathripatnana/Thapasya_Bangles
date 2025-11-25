@@ -1,6 +1,6 @@
-// components/product/ProductCard.jsx
-import React from 'react';
-import { Star, ShoppingCart, Heart, Edit, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+// components/product/ProductCard.jsx - Updated with size selection
+import React, { useState } from 'react';
+import { Star, ShoppingCart, Heart, Edit, Trash2, AlertCircle, CheckCircle, Ruler } from 'lucide-react';
 
 const ProductCard = ({ 
   product, 
@@ -15,15 +15,16 @@ const ProductCard = ({
   isInCart = false,
   wishlistItems,
   cartItems,
-  navigateToCart // ADD THIS PROP FOR NAVIGATION
+  navigateToCart
 }) => {
+  const [selectedSize, setSelectedSize] = useState('');
+  const [showSizeModal, setShowSizeModal] = useState(false);
+
   const handleCardClick = (e) => {
-    // Prevent navigation if clicking on admin buttons or action buttons
-    if (e.target.closest('.admin-buttons') || e.target.closest('.action-button')) {
+    if (e.target.closest('.admin-buttons') || e.target.closest('.action-button') || e.target.closest('.size-selector')) {
       return;
     }
     
-    // Call the onProductClick function if it exists
     if (onProductClick) {
       onProductClick(product.id);
     }
@@ -32,39 +33,58 @@ const ProductCard = ({
   const handleWishlistClick = (e) => {
     e.stopPropagation();
     
-    // Check if product is already in wishlist
+    // Check if size is required but not selected
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      document.body.classList.add('modal-open');
+      setShowSizeModal(true);
+      return;
+    }
+
     const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
     
     if (productInWishlist) {
-      // If already in wishlist, remove it
-      if (onRemoveFromWishlist) {
-        onRemoveFromWishlist(product.id);
-      }
+      onRemoveFromWishlist && onRemoveFromWishlist(product.id);
     } else {
-      // If not in wishlist, add it
-      if (onAddToWishlist) {
-        onAddToWishlist(product);
-      }
+      // PASS THE SELECTED SIZE TO THE PRODUCT
+      onAddToWishlist && onAddToWishlist({
+        ...product,
+        selectedSize: selectedSize
+      });
     }
   };
 
   const handleCartClick = (e) => {
     e.stopPropagation();
     
-    // Check if product is already in cart
+    // Check if size is required but not selected
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      document.body.classList.add('modal-open');
+      setShowSizeModal(true);
+      return;
+    }
+
     const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
     
     if (productInCart) {
-      // If already in cart, navigate to cart page
-      if (navigateToCart) {
-        navigateToCart();
-      }
+      navigateToCart && navigateToCart();
     } else {
-      // If not in cart, add it
-      if (onAddToCart) {
-        onAddToCart(product);
-      }
+      // PASS THE SELECTED SIZE TO THE PRODUCT
+      onAddToCart && onAddToCart({
+        ...product,
+        selectedSize: selectedSize
+      });
     }
+  };
+
+  const handleSizeSelect = (size) => {
+    setSelectedSize(size);
+    setShowSizeModal(false);
+    document.body.classList.remove('modal-open');
+  };
+
+  const closeSizeModal = () => {
+    setShowSizeModal(false);
+    document.body.classList.remove('modal-open');
   };
 
   // Check if product is in wishlist
@@ -83,11 +103,11 @@ const ProductCard = ({
       <div className="relative">
         <div className="aspect-square overflow-hidden">
           <img
-              src={product.images && product.images.length > 0 ? product.images[0] : product.image}
-              alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-              loading="lazy"
-            />
+            src={product.images && product.images.length > 0 ? product.images[0] : product.image}
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+            loading="lazy"
+          />
           
           {/* Stock Status Overlay */}
           {!product.inStock && (
@@ -120,6 +140,16 @@ const ProductCard = ({
             <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
               <CheckCircle className="w-3 h-3 mr-1" />
               In Stock
+            </span>
+          </div>
+        )}
+        
+        {/* Size Indicator */}
+        {!isAdmin && product.sizes && product.sizes.length > 0 && selectedSize && (
+          <div className="absolute bottom-2 left-2">
+            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+              <Ruler className="w-3 h-3 mr-1" />
+              {selectedSize}
             </span>
           </div>
         )}
@@ -170,6 +200,31 @@ const ProductCard = ({
           </div>
           <span className="text-gray-600 text-xs sm:text-sm ml-2">({product.rating})</span>
         </div>
+
+        {/* Size Selection for non-admin */}
+        {!isAdmin && product.sizes && product.sizes.length > 0 && (
+          <div className="mb-3 size-selector">
+            <label className="block text-xs text-gray-600 mb-1">Select Size:</label>
+            <div className="flex overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+              {product.sizes.map(size => (
+                <button
+                  key={size}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSizeSelect(size);
+                  }}
+                  className={`flex-shrink-0 text-xs px-3 py-2 rounded border transition-colors mx-1 min-w-[50px] ${
+                    selectedSize === size
+                      ? 'bg-yellow-500 text-white border-yellow-500'
+                      : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -236,6 +291,12 @@ const ProductCard = ({
               <div className="flex items-center justify-between text-xs text-gray-600 mt-1">
                 <span>Quantity:</span>
                 <span className="font-medium">{product.stock} units</span>
+              </div>
+            )}
+            {product.sizes && product.sizes.length > 0 && (
+              <div className="flex items-center justify-between text-xs text-gray-600 mt-1">
+                <span>Available Sizes:</span>
+                <span className="font-medium">{product.sizes.join(', ')}</span>
               </div>
             )}
           </div>

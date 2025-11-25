@@ -11,16 +11,6 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
   const [sortBy, setSortBy] = useState('name');
   const [priceRange, setPriceRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [categories, setCategories] = useState([]);
-  
-  // Load categories
-  useEffect(() => {
-    const unsubscribe = subscribeToCategoriesUpdates((fetchedCategories) => {
-      setCategories(fetchedCategories);
-    });
-
-    return () => unsubscribe && unsubscribe();
-  }, []);
 
   // Update category when initialCategory changes
   useEffect(() => {

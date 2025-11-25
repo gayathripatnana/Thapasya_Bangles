@@ -1,6 +1,6 @@
-// pages/ProductDetailsPage.jsx - Updated with multiple images support
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle } from 'lucide-react';
+// pages/ProductDetailsPage.jsx - Updated with multiple images support and size selection
+import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
 
 const ProductDetailsPage = ({ 
@@ -21,6 +21,8 @@ const ProductDetailsPage = ({
   const [selectedImage, setSelectedImage] = useState(0);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [dynamicRelatedProducts, setDynamicRelatedProducts] = useState([]);
+  const [selectedSize, setSelectedSize] = useState('');
+  const [showSizeChart, setShowSizeChart] = useState(false);
 
   // Load related products based on category
   useEffect(() => {
@@ -41,6 +43,24 @@ const ProductDetailsPage = ({
       loadRelatedProducts();
     }
   }, [product, relatedProducts]);
+
+  // Pre-select size if product is in cart
+  useEffect(() => {
+    if (product && cartItems) {
+      const cartItem = cartItems.find(item => item.id === product.id);
+      if (cartItem && cartItem.selectedSize) {
+        setSelectedSize(cartItem.selectedSize);
+      }
+    }
+  }, [product, cartItems]);
+
+  // Reactive product in cart check that updates when selectedSize changes
+  const productInCart = useMemo(() => {
+    if (!cartItems || !product) return isInCart;
+    return cartItems.some(item => 
+      item.id === product.id && item.selectedSize === selectedSize
+    );
+  }, [cartItems, product, selectedSize, isInCart]);
 
   if (!product) {
     return (
@@ -71,39 +91,52 @@ const ProductDetailsPage = ({
   };
 
   const handleAddToCart = () => {
+    // Check if size is required but not selected
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      alert('Please select a size before adding to cart');
+      return;
+    }
+
+    // Always add as new item (different sizes = different items)
     for (let i = 0; i < quantity; i++) {
-      onAddToCart(product);
+      onAddToCart({
+        ...product,
+        selectedSize: selectedSize
+      });
     }
   };
 
   const handleWishlistClick = () => {
-    // Check if product is already in wishlist
+    // Check if size is required but not selected
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      alert('Please select a size before adding to wishlist');
+      return;
+    }
+
     const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
     
     if (productInWishlist) {
-      // If already in wishlist, remove it
-      if (onRemoveFromWishlist) {
-        onRemoveFromWishlist(product.id);
-      }
+      onRemoveFromWishlist && onRemoveFromWishlist(product.id);
     } else {
-      // If not in wishlist, add it
-      if (onAddToWishlist) {
-        onAddToWishlist(product);
-      }
+      // PASS THE SELECTED SIZE TO THE PRODUCT
+      onAddToWishlist && onAddToWishlist({
+        ...product,
+        selectedSize: selectedSize
+      });
     }
   };
 
   const handleCartClick = () => {
-    // Check if product is already in cart
-    const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
-    
+    // Check if size is required but not selected
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      alert('Please select a size before adding to cart');
+      return;
+    }
+
     if (productInCart) {
-      // If already in cart, navigate to cart page
-      if (navigateToCart) {
-        navigateToCart();
-      }
+      navigateToCart && navigateToCart();
     } else {
-      // If not in cart, add it
+      // PASS THE SELECTED SIZE TO THE PRODUCT
       handleAddToCart();
     }
   };
@@ -114,6 +147,7 @@ const ProductDetailsPage = ({
     
 Product: ${product.name}
 Category: ${product.category}
+${product.selectedSize ? `Size: ${product.selectedSize}` : ''}
 Price: ₹${product.price.toLocaleString()}
 Quantity: ${quantity}
 Total: ₹${(product.price * quantity).toLocaleString()}
@@ -150,9 +184,6 @@ Please confirm availability and share payment details. Thank you!`;
 
   // Check if product is in wishlist
   const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
-  
-  // Check if product is in cart
-  const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
 
   const totalPrice = product.price * quantity;
   const originalPrice = Math.round(product.price * 1.2);
@@ -227,6 +258,16 @@ Please confirm availability and share payment details. Thank you!`;
               >
                 <Heart className={`w-5 h-5 ${productInWishlist ? 'fill-current text-white' : ''}`} />
               </button>
+
+              {/* Size Indicator */}
+              {selectedSize && (
+                <div className="absolute bottom-4 left-4">
+                  <span className="bg-blue-500 text-white text-xs px-3 py-1 rounded-full flex items-center space-x-1">
+                    <Ruler className="w-3 h-3" />
+                    <span>Size: {selectedSize}</span>
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Thumbnail Images */}
@@ -315,6 +356,61 @@ Please confirm availability and share payment details. Thank you!`;
                 </div>
               </div>
             </div>
+
+            {/* Size Selection */}
+            {product.sizes && product.sizes.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Select Size *
+                </label>
+                {/* Add this informational text */}
+                <p className="text-xs text-gray-500 mb-2">
+                  Note: Different sizes will be added as separate items in your cart
+                </p>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {product.sizes.map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setSelectedSize(size)}
+                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                        selectedSize === size
+                          ? 'border-yellow-500 bg-yellow-50 text-yellow-700 font-semibold'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Size Chart */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowSizeChart(!showSizeChart)}
+                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 w-full text-left"
+                  >
+                    <Ruler className="w-4 h-4" />
+                    <span className="text-sm font-medium">Size Guide</span>
+                    <span className="ml-auto transform transition-transform">
+                      {showSizeChart ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  
+                  {showSizeChart && product.sizeChart && (
+                    <div className="mt-3 text-sm text-gray-600 space-y-2">
+                      {Object.entries(product.sizeChart).map(([size, description]) => (
+                        <div key={size} className="flex justify-between items-start py-1 border-b border-gray-200 last:border-b-0">
+                          <span className="font-medium text-yellow-600 min-w-[60px]">{size}:</span>
+                          <span className="text-right flex-1 ml-4">{description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="space-y-3">
@@ -414,6 +510,12 @@ Please confirm availability and share payment details. Thank you!`;
                   <span className="text-gray-500">Images:</span>
                   <span className="ml-2 font-medium">{productImages.length}</span>
                 </div>
+                {product.sizes && product.sizes.length > 0 && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500">Available Sizes:</span>
+                    <span className="ml-2 font-medium">{product.sizes.join(', ')}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -18,7 +18,9 @@ import {
   updateProduct, 
   deleteProduct,
   subscribeToProductsUpdates,
-  subscribeToCategoriesUpdates
+  subscribeToCategoriesUpdates,
+    addToFeaturedProducts, 
+  removeFromFeaturedProducts 
 } from './utils/helpers';
 
 // ADD THESE CART AND WISHLIST IMPORTS
@@ -26,7 +28,8 @@ import {
   addToCart, 
   removeFromCart, 
   updateCartQuantity, 
-  getCart 
+  getCart,
+  updateCartSize
 } from './utils/cartHelpers';
 import { 
   addToWishlist, 
@@ -205,42 +208,53 @@ function App() {
     setCurrentView('products');
   };
 
-  // Firebase product operations
-  const handleAddProduct = async (productData) => {
-    try {
-      await addProduct(productData);
-      // Products will be updated automatically via the subscription
-      return true;
-    } catch (error) {
-      console.error('Error adding product:', error);
-      alert('Error adding product. Please try again.');
-      return false;
+const handleAddProduct = async (productData) => {
+  try {
+    const productId = await addProduct(productData);
+    
+    // Handle featured products
+    if (productData.isFeatured) {
+      await addToFeaturedProducts({ ...productData, id: productId });
     }
-  };
+    
+    return true;
+  } catch (error) {
+    console.error('Error adding product:', error);
+    alert('Error adding product. Please try again.');
+    return false;
+  }
+};
 
-  const handleUpdateProduct = async (id, productData) => {
-    try {
-      await updateProduct(id, productData);
-      // Products will be updated automatically via the subscription
-      return true;
-    } catch (error) {
-      console.error('Error updating product:', error);
-      alert('Error updating product. Please try again.');
-      return false;
+const handleUpdateProduct = async (id, productData) => {
+  try {
+    await updateProduct(id, productData);
+    
+    // Handle featured products
+    if (productData.isFeatured) {
+      await addToFeaturedProducts({ ...productData, id: id });
+    } else {
+      await removeFromFeaturedProducts(id);
     }
-  };
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating product:', error);
+    alert('Error updating product. Please try again.');
+    return false;
+  }
+};
 
-  const handleDeleteProduct = async (id) => {
-    try {
-      await deleteProduct(id);
-      // Products will be updated automatically via the subscription
-      return true;
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      alert('Error deleting product. Please try again.');
-      return false;
-    }
-  };
+const handleDeleteProduct = async (id) => {
+  try {
+    await deleteProduct(id);
+    await removeFromFeaturedProducts(id); // Remove from featured too
+    return true;
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    alert('Error deleting product. Please try again.');
+    return false;
+  }
+};
 
   const updateOrderStatus = (orderId, status) => {
     setOrders(orders.map(order => 
@@ -248,36 +262,60 @@ function App() {
     ));
   };
 
-  // Cart functions with Firebase integration
-  const handleAddToCart = async (product) => {
-    // Check if user is logged in
-    if (!isLoggedIn) {
-      // Store the product temporarily and redirect to login
-      setSelectedProductId(product.id);
-      setCurrentView('login');
-      return;
-    }
+// In App.js, update handleAddToCart function:
+const handleAddToCart = async (product) => {
+  // Check if size is required but not selected
+  if (product.sizes && product.sizes.length > 0 && !product.selectedSize) {
+    alert('Please select a size before adding to cart');
+    return;
+  }
 
-    try {
-      await addToCart(user.uid, product);
-      // Update local state
-      setCartItems(prevItems => {
-        const existingItem = prevItems.find(item => item.id === product.id);
-        if (existingItem) {
-          return prevItems.map(item =>
-            item.id === product.id 
-              ? { ...item, quantity: item.quantity + 1 } 
-              : item
-          );
-        } else {
-          return [...prevItems, { ...product, quantity: 1 }];
-        }
-      });
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      alert('Error adding product to cart');
-    }
-  };
+  if (!isLoggedIn) {
+    setSelectedProductId(product.id);
+    setCurrentView('login');
+    return;
+  }
+
+  try {
+    await addToCart(user.uid, product);
+    // Update local state
+    setCartItems(prevItems => {
+      const existingItem = prevItems.find(item => 
+        item.id === product.id && item.selectedSize === product.selectedSize
+      );
+      if (existingItem) {
+        return prevItems.map(item =>
+          item.id === product.id && item.selectedSize === product.selectedSize
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        );
+      } else {
+        return [...prevItems, { ...product, quantity: 1 }];
+      }
+    });
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    alert('Error adding product to cart');
+  }
+};
+
+// Add function to update size in cart
+const handleUpdateCartSize = async (productId, newSize) => {
+  if (!isLoggedIn) return;
+  
+  try {
+    // You'll need to create updateCartSize function in cartHelpers
+    await updateCartSize(user.uid, productId, newSize);
+    setCartItems(prevItems =>
+      prevItems.map(item =>
+        item.id === productId ? { ...item, selectedSize: newSize } : item
+      )
+    );
+  } catch (error) {
+    console.error('Error updating cart size:', error);
+    alert('Error updating product size');
+  }
+};
 
   const handleUpdateCartQuantity = async (productId, quantity) => {
     if (!isLoggedIn) return;
@@ -309,30 +347,34 @@ function App() {
     }
   };
 
-  // Wishlist functions with Firebase integration
-  const handleAddToWishlist = async (product) => {
-    // Check if user is logged in
-    if (!isLoggedIn) {
-      // Store the product temporarily and redirect to login
-      setSelectedProductId(product.id);
-      setCurrentView('login');
-      return;
-    }
+// In App.js, update handleAddToWishlist function:
+const handleAddToWishlist = async (product) => {
+  // Check if size is required but not selected
+  if (product.sizes && product.sizes.length > 0 && !product.selectedSize) {
+    alert('Please select a size before adding to wishlist');
+    return;
+  }
 
-    try {
-      await addToWishlist(user.uid, product);
-      // Update local state
-      setWishlistItems(prevItems => {
-        if (prevItems.some(item => item.id === product.id)) {
-          return prevItems;
-        }
-        return [...prevItems, product];
-      });
-    } catch (error) {
-      console.error('Error adding to wishlist:', error);
-      alert('Error adding product to wishlist');
-    }
-  };
+  if (!isLoggedIn) {
+    setSelectedProductId(product.id);
+    setCurrentView('login');
+    return;
+  }
+
+  try {
+    await addToWishlist(user.uid, product);
+    // Update local state
+    setWishlistItems(prevItems => {
+      if (prevItems.some(item => item.id === product.id && item.selectedSize === product.selectedSize)) {
+        return prevItems;
+      }
+      return [...prevItems, product];
+    });
+  } catch (error) {
+    console.error('Error adding to wishlist:', error);
+    alert('Error adding product to wishlist');
+  }
+};
 
   const handleRemoveFromWishlist = async (productId) => {
     if (!isLoggedIn) return;
@@ -405,6 +447,7 @@ function App() {
           onAddToWishlist={handleAddToWishlist}
           onRemoveFromWishlist={handleRemoveFromWishlist}
           onAddToCart={handleAddToCart}
+          onUpdateQuantity={handleUpdateCartQuantity}
           wishlistItems={wishlistItems}
           cartItems={cartItems}
           navigateToCart={() => setCurrentView('cart')}
@@ -425,6 +468,8 @@ function App() {
           onUpdateQuantity={handleUpdateCartQuantity}
           onRemoveItem={handleRemoveFromCart}
           onBack={() => setCurrentView('products')}
+          onProductClick={handleProductClick} // ADD THIS
+          onAddToCart={handleAddToCart}
         />;
       case 'wishlist':
         return <WishlistPage 

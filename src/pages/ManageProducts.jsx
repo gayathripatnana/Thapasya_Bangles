@@ -34,21 +34,21 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
     return matchesSearch && matchesCategory && matchesStock();
   });
 
-  const handleAddProduct = (productData) => {
-    onAdd(productData);
-    setShowForm(false);
-  };
+  const handleAddProduct = async (productData) => {
+  await onAdd(productData); // Make sure this is async
+  setShowForm(false);
+};
 
   const handleEditProduct = (product) => {
     setEditingProduct(product);
     setShowForm(true);
   };
 
-  const handleUpdateProduct = (productData) => {
-    onUpdate(editingProduct.id, productData);
-    setEditingProduct(null);
-    setShowForm(false);
-  };
+const handleUpdateProduct = async (productData) => {
+  await onUpdate(editingProduct.id, productData); // Make sure this is async
+  setEditingProduct(null);
+  setShowForm(false);
+};
 
   const handleDeleteProduct = (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
