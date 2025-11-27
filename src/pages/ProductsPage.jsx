@@ -183,6 +183,28 @@ useEffect(() => {
     return cartItems && cartItems.some(item => item.id === productId);
   }, [cartItems]);
 
+  // Helper function to get correct category image
+const getCategoryHeroImage = (selectedCategory, categoryImages) => {
+  // Map display categories to Firebase category IDs
+  const categoryMap = {
+    'all': 'all',
+    'Bridal Bangles': 'bridal',
+    'Side Bangles': 'side',
+    'Hair Accessories': 'hair_accessories', 
+    'Semi Bridal': 'semi_bridal',
+    'Return Gifts': 'return_gifts'
+  };
+
+  const categoryId = categoryMap[selectedCategory];
+  
+  // Return bridal image for both 'all' and 'bridal' categories
+  if (selectedCategory === 'all' || selectedCategory === 'Bridal Bangles') {
+    return categoryImages['bridal'] || categoryImages['all'];
+  }
+  
+  return categoryImages[categoryId];
+};
+
   const handleNavigateToCart = useCallback(() => {
     setCurrentView('cart');
   }, [setCurrentView]);
@@ -226,44 +248,44 @@ useEffect(() => {
   <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
     <div className="container mx-auto px-4">
       
-      {/* ADD THIS HERO SECTION */}
-      <div className="relative w-full overflow-hidden rounded-xl mb-6 sm:mb-8">
-        {/* Background Image */}
-        <div className="relative w-full h-[200px] sm:h-[300px] lg:h-[350px]">
-          <img 
-            src={categoryImages[selectedCategory.toLowerCase().replace(' ', '_')] || "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800&h=400&fit=crop"} 
-            alt={selectedCategory}
-            className="w-full h-full object-cover"
-          />
+{/* HERO SECTION WITH CORRECT CATEGORY IMAGES */}
+<div className="relative w-full overflow-hidden rounded-xl mb-6 sm:mb-8">
+  {/* Background Image */}
+  <div className="relative w-full h-[200px] sm:h-[300px] lg:h-[350px]">
+    <img 
+      src={getCategoryHeroImage(selectedCategory, categoryImages) || "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800&h=400&fit=crop"} 
+      alt={selectedCategory}
+      className="w-full h-full object-cover"
+    />
+    
+    {/* Dark Overlay for better text readability */}
+    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent"></div>
+    
+    {/* Text Content Overlay */}
+    <div className="absolute inset-0 flex items-center">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-xl space-y-3 sm:space-y-4">
+          {/* Category Title */}
+          <h1 className="font-serif leading-tight">
+            <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white font-normal">
+              {selectedCategory === 'all' ? 'All Products' : selectedCategory}
+            </span>
+          </h1>
           
-          {/* Dark Overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent"></div>
+          {/* Description */}
+          <p className="text-white text-sm sm:text-base lg:text-lg leading-relaxed">
+            Discover our beautiful collection of {selectedCategory === 'all' ? 'handcrafted products' : selectedCategory.toLowerCase()}
+          </p>
           
-          {/* Text Content Overlay */}
-          <div className="absolute inset-0 flex items-center">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="max-w-xl space-y-3 sm:space-y-4">
-                {/* Category Title */}
-                <h1 className="font-serif leading-tight">
-                  <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white font-normal">
-                    {selectedCategory === 'all' ? 'All Products' : selectedCategory}
-                  </span>
-                </h1>
-                
-                {/* Description */}
-                <p className="text-white text-sm sm:text-base lg:text-lg leading-relaxed">
-                  Discover our beautiful collection of {selectedCategory === 'all' ? 'handcrafted products' : selectedCategory.toLowerCase()}
-                </p>
-                
-                {/* Product Count */}
-                <p className="text-yellow-200 text-sm sm:text-base">
-                  {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} available
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Product Count */}
+          <p className="text-yellow-200 text-sm sm:text-base">
+            {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} available
+          </p>
         </div>
       </div>
+    </div>
+  </div>
+</div>
 
         {/* Mobile Search Bar */}
         <div className="mb-4">

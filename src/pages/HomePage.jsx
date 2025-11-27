@@ -520,7 +520,7 @@ const staticCategories = [
     </div>
     
     {/* Small Preview Image in Corner */}
-<div className="absolute top-7 right-10 sm:top-16 sm:right-6 lg:top-20 lg:right-10 w-24 h-32 sm:w-32 sm:h-40 lg:w-40 lg:h-52 xl:w-48 xl:h-60 border-3 sm:border-4 border-white rounded-lg overflow-hidden shadow-2xl">
+<div className="absolute top-5 right-5 sm:top-16 sm:right-6 lg:top-20 lg:right-10 w-24 h-32 sm:w-32 sm:h-40 lg:w-40 lg:h-52 xl:w-48 xl:h-60 border-3 sm:border-4 border-white rounded-lg overflow-hidden shadow-2xl">
       <img 
         src={heroImages[1] || defaultHeroImages[1]} 
         alt="Bangles preview"
