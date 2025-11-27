@@ -56,6 +56,10 @@ const ProductDetailsPage = ({
   const [selectedSize, setSelectedSize] = useState('');
   const [showSizeChart, setShowSizeChart] = useState(false);
 
+    useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Convert product images to use direct Google Drive URLs
   const processedProduct = useMemo(() => {
     if (!product) return null;
@@ -113,12 +117,20 @@ const ProductDetailsPage = ({
   }, [processedProduct, cartItems]);
 
   // Reactive product in cart check that updates when selectedSize changes
-  const productInCart = useMemo(() => {
-    if (!cartItems || !processedProduct) return isInCart;
-    return cartItems.some(item => 
-      item.id === processedProduct.id && item.selectedSize === selectedSize
-    );
-  }, [cartItems, processedProduct, selectedSize, isInCart]);
+// Reactive product in cart check that updates when selectedSize changes
+const productInCart = useMemo(() => {
+  if (!cartItems || !processedProduct) return isInCart;
+  
+  // For Hair Accessories and Return Gifts, don't check size
+  if (processedProduct.category === 'Hair Accessories' || processedProduct.category === 'Return Gifts') {
+    return cartItems.some(item => item.id === processedProduct.id);
+  }
+  
+  // For other products, check both ID and size
+  return cartItems.some(item => 
+    item.id === processedProduct.id && item.selectedSize === selectedSize
+  );
+}, [cartItems, processedProduct, selectedSize, isInCart]);
 
   if (!processedProduct) {
     return (
@@ -146,56 +158,67 @@ const ProductDetailsPage = ({
     }
   };
 
-  const handleAddToCart = () => {
-    // Check if size is required but not selected
-    if (processedProduct.sizes && processedProduct.sizes.length > 0 && !selectedSize) {
-      alert('Please select a size before adding to cart');
-      return;
-    }
+const handleAddToCart = () => {
+  // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+  const sizeRequired = processedProduct.sizes && processedProduct.sizes.length > 0 && 
+                      processedProduct.category !== 'Hair Accessories' && 
+                      processedProduct.category !== 'Return Gifts';
+  
+  if (sizeRequired && !selectedSize) {
+    alert('Please select a size before adding to cart');
+    return;
+  }
 
-    // Always add as new item (different sizes = different items)
-    for (let i = 0; i < quantity; i++) {
-      onAddToCart({
-        ...processedProduct,
-        selectedSize: selectedSize
-      });
-    }
-  };
+  // Always add as new item (different sizes = different items)
+  for (let i = 0; i < quantity; i++) {
+    onAddToCart({
+      ...processedProduct,
+      selectedSize: selectedSize
+    });
+  }
+};
 
-  const handleWishlistClick = () => {
-    // Check if size is required but not selected
-    if (processedProduct.sizes && processedProduct.sizes.length > 0 && !selectedSize) {
-      alert('Please select a size before adding to wishlist');
-      return;
-    }
+const handleWishlistClick = () => {
+  // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+  const sizeRequired = processedProduct.sizes && processedProduct.sizes.length > 0 && 
+                      processedProduct.category !== 'Hair Accessories' && 
+                      processedProduct.category !== 'Return Gifts';
+  
+  if (sizeRequired && !selectedSize) {
+    alert('Please select a size before adding to wishlist');
+    return;
+  }
 
-    const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === processedProduct.id) : isInWishlist;
-    
-    if (productInWishlist) {
-      onRemoveFromWishlist && onRemoveFromWishlist(processedProduct.id);
-    } else {
-      // PASS THE SELECTED SIZE TO THE PRODUCT
-      onAddToWishlist && onAddToWishlist({
-        ...processedProduct,
-        selectedSize: selectedSize
-      });
-    }
-  };
+  const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === processedProduct.id) : isInWishlist;
+  
+  if (productInWishlist) {
+    onRemoveFromWishlist && onRemoveFromWishlist(processedProduct.id);
+  } else {
+    // PASS THE SELECTED SIZE TO THE PRODUCT
+    onAddToWishlist && onAddToWishlist({
+      ...processedProduct,
+      selectedSize: selectedSize
+    });
+  }
+};
 
-  const handleCartClick = () => {
-    // Check if size is required but not selected
-    if (processedProduct.sizes && processedProduct.sizes.length > 0 && !selectedSize) {
-      alert('Please select a size before adding to cart');
-      return;
-    }
+const handleCartClick = () => {
+  // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+  const sizeRequired = processedProduct.sizes && processedProduct.sizes.length > 0 && 
+                      processedProduct.category !== 'Hair Accessories' && 
+                      processedProduct.category !== 'Return Gifts';
+  
+  if (sizeRequired && !selectedSize) {
+    alert('Please select a size before adding to cart');
+    return;
+  }
 
-    if (productInCart) {
-      navigateToCart && navigateToCart();
-    } else {
-      // PASS THE SELECTED SIZE TO THE PRODUCT
-      handleAddToCart();
-    }
-  };
+  if (productInCart) {
+    navigateToCart && navigateToCart();
+  } else {
+    handleAddToCart();
+  }
+};
 
 const orderProductViaWhatsApp = (product, quantity) => {
   const whatsappNumber = "+918074086883";
@@ -508,18 +531,17 @@ Looking forward to your response! 🙏`;
                     <span>Order via WhatsApp</span>
                   </button>
 
-                  {/* Add to Cart Button */}
-                  <button
-                    onClick={handleCartClick}
-                    className={`w-full py-4 px-6 rounded-lg font-semibold transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 ${
-                      productInCart 
-                        ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                        : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-purple-700'
-                    }`}
-                  >
-                    <ShoppingCart className="w-5 h-5" />
-                    <span>{productInCart ? 'View Cart' : 'Add to Cart'}</span>
-                  </button>
+<button
+  onClick={handleCartClick}
+  className={`w-full py-4 px-6 rounded-lg font-semibold transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 ${
+    productInCart 
+      ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+      : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-purple-700'
+  }`}
+>
+  <ShoppingCart className="w-5 h-5" />
+  <span>{productInCart ? 'View Cart' : 'Add to Cart'}</span>
+</button>
                 </>
               ) : (
                 <button

@@ -46,7 +46,9 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
   const [showFilters, setShowFilters] = useState(false);
   const [categoryImages, setCategoryImages] = useState({});
 
-
+      useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
   // Process products with Google Drive URL conversion
   const processedProducts = useMemo(() => {
     return products.map(product => ({

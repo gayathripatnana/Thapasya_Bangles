@@ -54,6 +54,9 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
   const [isSavingData, setIsSavingData] = useState(false);
   const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
   const [dataSaved, setDataSaved] = useState(false);
+      useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
 
   // Memoized calculations for performance
   const { subtotal, deliveryCharges, total } = useMemo(() => {
