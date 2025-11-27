@@ -1,6 +1,6 @@
 // pages/ProductDetailsPage.jsx - Updated with Google Drive URL conversion
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
+import { ArrowLeft, Package, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
 
 // Add the Google Drive URL conversion function
@@ -197,23 +197,37 @@ const ProductDetailsPage = ({
     }
   };
 
-  const orderProductViaWhatsApp = (product, quantity) => {
-    const whatsappNumber = "+918074086883";
-    const message = `Hi! I would like to order:
-    
-Product: ${product.name}
-Category: ${product.category}
-${selectedSize ? `Size: ${selectedSize}` : ''}
-Price: ₹${product.price.toLocaleString()}
-Quantity: ${quantity}
-Total: ₹${(product.price * quantity).toLocaleString()}
+const orderProductViaWhatsApp = (product, quantity) => {
+  const whatsappNumber = "+918074086883";
+  const message = `🛍️ *Hi! I'm interested in this PRODUCT* 🛍️
 
-Please confirm availability and share payment details. Thank you!`;
+*${product.name}*
+📂 Category: ${product.category}
+${selectedSize ? `📏 Size: ${selectedSize}` : ''}
+💰 Price: ₹${product.price.toLocaleString()}
+📊 Quantity: ${quantity}
+💵 Total: ₹${(product.price * quantity).toLocaleString()}
+⭐ Rating: ${product.rating}/5
+🔗 Product Image: ${product.image || 'Image not available'}
 
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-  };
+📋 Description:
+${product.description || 'Beautiful handcrafted bangle with traditional elegance.'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💬 *Please tell me about:*
+✅ Is this product available?
+✅ Delivery timeline to my location  
+✅ Payment options available
+✅ Any bulk discounts for this quantity
+
+📍 I will share my delivery address once you confirm availability.
+
+Looking forward to your response! 🙏`;
+
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
+};
   const handleWhatsAppOrder = () => {
     orderProductViaWhatsApp(processedProduct, quantity);
   };
@@ -525,7 +539,7 @@ Please confirm availability and share payment details. Thank you!`;
                   <Truck className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="text-sm font-medium text-gray-800">Free Delivery</div>
-                <div className="text-xs text-gray-500">2-5 days</div>
+                <div className="text-xs text-gray-500">7-10 days</div>
               </div>
               
               <div className="text-center">
@@ -535,14 +549,15 @@ Please confirm availability and share payment details. Thank you!`;
                 <div className="text-sm font-medium text-gray-800">Authentic</div>
                 <div className="text-xs text-gray-500">100% Genuine</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <RotateCcw className="w-5 h-5 text-purple-600" />
+                  <Package className="w-5 h-5 text-purple-600" />
                 </div>
-                <div className="text-sm font-medium text-gray-800">Easy Returns</div>
-                <div className="text-xs text-gray-500">7 days</div>
+                <div className="text-sm font-medium text-gray-800">Best Packing</div>
+                <div className="text-xs text-gray-500">High Quality</div>
               </div>
+
             </div>
 
             {/* Description */}
@@ -560,7 +575,7 @@ Please confirm availability and share payment details. Thank you!`;
             </div>
 
             {/* Specifications */}
-            <div className="border-t border-gray-200 pt-6">
+            {/* <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Specifications</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -586,7 +601,7 @@ Please confirm availability and share payment details. Thank you!`;
                   </div>
                 )}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
 

@@ -1,7 +1,8 @@
 // pages/ProductsPage.jsx
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Search, Filter, Package, SlidersHorizontal } from 'lucide-react';
-
+import { db, COLLECTIONS, DOCUMENTS } from '../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 // Lazy load ProductCard for better performance
 const ProductCard = lazy(() => import('../components/product/ProductCard'));
 
@@ -40,9 +41,11 @@ const convertGoogleDriveUrl = (url) => {
 const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems, onRemoveFromWishlist, cartItems, initialCategory = 'all', setCurrentView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-  const [sortBy, setSortBy] = useState('name');
+  const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [categoryImages, setCategoryImages] = useState({});
+
 
   // Process products with Google Drive URL conversion
   const processedProducts = useMemo(() => {
@@ -62,6 +65,45 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
       setSelectedCategory('all');
     }
   }, [initialCategory]);
+
+  // Load category images from Firebase
+useEffect(() => {
+  const loadCategoryImages = async () => {
+    try {
+      
+      const docRef = doc(db, COLLECTIONS.CATEGORY_PICTURES, DOCUMENTS.IMAGES);
+      
+      const unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const imagesData = data.images || {};
+            
+            const convertedImages = {};
+            Object.keys(imagesData).forEach(category => {
+              const url = imagesData[category];
+              if (typeof url === 'string' && url) {
+                convertedImages[category] = convertGoogleDriveUrl(url);
+              }
+            });
+            
+            setCategoryImages(convertedImages);
+          }
+        },
+        (error) => {
+          console.error('Error loading category images:', error);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error setting up category images listener:', error);
+    }
+  };
+
+  loadCategoryImages();
+}, []);
 
   // Memoized filtered products for performance
   const filteredProducts = useMemo(() => {
@@ -90,6 +132,7 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
         return matchesSearch && matchesCategory() && matchesPrice();
       })
       .sort((a, b) => {
+          const idSort = b.id - a.id;
         switch (sortBy) {
           case 'name':
             return a.name.localeCompare(b.name);
@@ -100,9 +143,9 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
           case 'rating':
             return b.rating - a.rating;
           case 'newest':
-            return new Date(b.createdAt || '2024-01-01') - new Date(a.createdAt || '2024-01-01');
+            return idSort;
           default:
-            return 0;
+            return idSort;
         }
       });
   }, [processedProducts, searchTerm, selectedCategory, priceRange, sortBy]);
@@ -150,9 +193,18 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
     { id: 'Bridal Bangles', title: 'Bridal Bangles' },
     { id: 'Side Bangles', title: 'Side Bangles' },
     { id: 'Hair Accessories', title: 'Hair Accessories' },
-    { id: 'Traditional', title: 'Traditional' },
+    { id: 'Semi Bridal', title: 'Semi Bridal' },
     { id: 'Return Gifts', title: 'Return Gifts' }
   ];
+
+  const categoryImageMap = {
+  'all': 'all',
+  'Bridal Bangles': 'bridal',
+  'Side Bangles': 'side', 
+  'Hair Accessories': 'hair_accessories',
+  'Semi Bridal': 'semi_bridal',
+  'Return Gifts': 'return_gifts'
+};
 
   // ProductCard loading skeleton
   const ProductCardSkeleton = () => (
@@ -171,17 +223,47 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
-      <div className="container mx-auto px-4">
-        {/* Mobile-First Header */}
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-2 sm:mb-4">
-            Our Product Collection
-          </h1>
-          <p className="text-sm sm:text-lg text-gray-600 max-w-2xl mx-auto px-4">
-            Discover our handcrafted bangles, each piece telling a unique story of elegance and tradition
-          </p>
+  <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+    <div className="container mx-auto px-4">
+      
+      {/* ADD THIS HERO SECTION */}
+      <div className="relative w-full overflow-hidden rounded-xl mb-6 sm:mb-8">
+        {/* Background Image */}
+        <div className="relative w-full h-[200px] sm:h-[300px] lg:h-[350px]">
+          <img 
+            src={categoryImages[selectedCategory.toLowerCase().replace(' ', '_')] || "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800&h=400&fit=crop"} 
+            alt={selectedCategory}
+            className="w-full h-full object-cover"
+          />
+          
+          {/* Dark Overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent"></div>
+          
+          {/* Text Content Overlay */}
+          <div className="absolute inset-0 flex items-center">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="max-w-xl space-y-3 sm:space-y-4">
+                {/* Category Title */}
+                <h1 className="font-serif leading-tight">
+                  <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white font-normal">
+                    {selectedCategory === 'all' ? 'All Products' : selectedCategory}
+                  </span>
+                </h1>
+                
+                {/* Description */}
+                <p className="text-white text-sm sm:text-base lg:text-lg leading-relaxed">
+                  Discover our beautiful collection of {selectedCategory === 'all' ? 'handcrafted products' : selectedCategory.toLowerCase()}
+                </p>
+                
+                {/* Product Count */}
+                <p className="text-yellow-200 text-sm sm:text-base">
+                  {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} available
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
         {/* Mobile Search Bar */}
         <div className="mb-4">

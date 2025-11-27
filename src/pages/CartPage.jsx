@@ -1,10 +1,11 @@
-// pages/CartPage.jsx - Optimized for Performance and Responsiveness
-import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Tag, Truck, Shield, RotateCcw, Star, Phone, User, Mail, MapPin, Ruler } from 'lucide-react';
+// pages/CartPage.jsx - Complete with address saving and cart clearing
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Tag, Truck, Shield, RotateCcw, Star, Phone, User, Mail, MapPin, Ruler, AlertCircle, CheckCircle } from 'lucide-react';
 import { proceedToWhatsAppCheckout } from '../utils/whatsappCheckout';
 import { getProductsByCategory } from '../utils/helpers';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
-// Lazy load heavy components
 // Google Drive URL conversion function
 const convertGoogleDriveUrl = (url) => {
   if (typeof url !== 'string' || !url) {
@@ -37,10 +38,8 @@ const convertGoogleDriveUrl = (url) => {
   }
 };
 
-const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize }) => {
-  const [promoCode, setPromoCode] = useState('');
-  const [appliedPromoCode, setAppliedPromoCode] = useState('');
-  const [discount, setDiscount] = useState(0);
+const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize, currentUserId }) => {
+  
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -51,15 +50,19 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [showSizeModal, setShowSizeModal] = useState(null);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  const [error, setError] = useState('');
+  const [isSavingData, setIsSavingData] = useState(false);
+  const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
+  const [dataSaved, setDataSaved] = useState(false);
 
   // Memoized calculations for performance
   const { subtotal, deliveryCharges, total } = useMemo(() => {
     const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const deliveryCharges = subtotal > 1500 ? 0 : 99;
-    const total = subtotal - discount + deliveryCharges;
+    const total = subtotal + deliveryCharges;
     
     return { subtotal, deliveryCharges, total };
-  }, [cartItems, discount]);
+  }, [cartItems]);
 
   // Process cart items with optimized images
   const processedCartItems = useMemo(() => {
@@ -68,14 +71,6 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
       image: convertGoogleDriveUrl(item.image)
     }));
   }, [cartItems]);
-
-  // Promo codes
-  const promoCodes = useMemo(() => ({
-    'SAVE10': { type: 'percentage', value: 0.1, description: '10% off' },
-    'WELCOME20': { type: 'percentage', value: 0.2, description: '20% off' },
-    'FIRST50': { type: 'fixed', value: 50, description: '₹50 off' },
-    'FREE100': { type: 'fixed', value: 100, description: '₹100 off' }
-  }), []);
 
   // Load related products with optimization
   useEffect(() => {
@@ -119,65 +114,224 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     loadRelatedProducts();
   }, [cartItems]);
 
-  // Optimized event handlers
-  const handleApplyPromo = useCallback(() => {
-    const upperPromoCode = promoCode.toUpperCase();
-    if (promoCodes[upperPromoCode]) {
-      const promo = promoCodes[upperPromoCode];
-      const promoDiscount = promo.type === 'percentage' 
-        ? subtotal * promo.value
-        : promo.value;
-      
-      setDiscount(promoDiscount);
-      setAppliedPromoCode(upperPromoCode);
-      setPromoCode('');
-    } else {
-      alert('Invalid promo code');
-    }
-  }, [promoCode, promoCodes, subtotal]);
+  // Load user data and prefill form - UPDATED VERSION
+  useEffect(() => {
+    const loadUserData = async () => {
+      // Only load if we have a valid user ID and user is logged in
+      if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        try {
+          console.log('Loading user data for:', currentUserId);
+          const userDocRef = doc(db, 'users', currentUserId);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            console.log('Loaded user data:', userData);
+            
+            setCustomerInfo({
+              name: userData.name || '',
+              phone: userData.phone || '',
+              email: userData.email || '',
+              address: userData.address || '' // ✅ Load saved address
+            });
+            
+            // If user has all required data, mark as saved
+            if (userData.phone && userData.address) {
+              setDataSaved(true);
+            }
+          } else {
+            console.log('User document not found for ID:', currentUserId);
+            // Create initial user document if it doesn't exist
+            await setDoc(userDocRef, {
+              name: '',
+              phone: '',
+              email: '',
+              address: '', // ✅ Initialize empty address
+              createdAt: new Date()
+            });
+          }
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        }
+      } else {
+        console.log('No valid user ID available:', currentUserId);
+      }
+    };
 
-  const handleRemovePromo = useCallback(() => {
-    setDiscount(0);
-    setAppliedPromoCode('');
-  }, []);
+    loadUserData();
+  }, [currentUserId]);
 
   const handleCustomerInfoChange = useCallback((field, value) => {
     setCustomerInfo(prev => ({
       ...prev,
       [field]: value
     }));
-  }, []);
+    // Reset data saved status when user makes changes
+    if (dataSaved) {
+      setDataSaved(false);
+    }
+  }, [dataSaved]);
 
-  const handleCheckout = useCallback(() => {
-    const orderSummary = {
-      subtotal,
-      discount,
-      deliveryCharges,
-      total
-    };
+  // Save user data to database
+  const saveUserData = async () => {
+    if (!currentUserId) {
+      setError('User not logged in');
+      return false;
+    }
 
-    // Check if customer wants to provide info
-    if (!showCustomerForm && !customerInfo.name) {
+    // Validate required fields
+    if (!customerInfo.phone) {
+      setError('Phone number is required');
+      return false;
+    }
+
+    if (!customerInfo.address) {
+      setError('Delivery address is required');
+      return false;
+    }
+
+    setIsSavingData(true);
+    setError('');
+
+    try {
+      const userDocRef = doc(db, 'users', currentUserId);
+      const userDoc = await getDoc(userDocRef);
+      
+      const userData = {
+        name: customerInfo.name || '',
+        phone: customerInfo.phone,
+        email: customerInfo.email || '',
+        address: customerInfo.address,
+        updatedAt: new Date()
+      };
+
+      if (userDoc.exists()) {
+        await updateDoc(userDocRef, userData);
+      } else {
+        await setDoc(userDocRef, {
+          ...userData,
+          createdAt: new Date()
+        });
+      }
+
+      console.log('User data saved successfully');
+      setDataSaved(true);
+      return true;
+    } catch (error) {
+      console.error('Error saving user data:', error);
+      setError('Failed to save data. Please try again.');
+      return false;
+    } finally {
+      setIsSavingData(false);
+    }
+  };
+
+  // Clear cart after successful checkout
+  const clearCartAfterCheckout = async () => {
+    if (!currentUserId) return;
+    
+    try {
+      // Remove all items from cart one by one
+      for (const item of cartItems) {
+        await onRemoveItem(item.id);
+      }
+      console.log('Cart cleared after checkout');
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    }
+  };
+
+  const handleSaveAndContinue = async () => {
+    const saved = await saveUserData();
+    if (saved) {
+      setShowCheckoutConfirmation(true);
+    }
+  };
+
+const handleFinalCheckout = async () => {
+  const orderSummary = {
+    subtotal,
+    discount: 0,
+    deliveryCharges,
+    total
+  };
+
+  // ✅ Make sure customerInfo includes the address
+  const checkoutData = {
+    ...customerInfo,
+    address: customerInfo.address || 'Address not provided'
+  };
+
+  // Proceed with WhatsApp checkout
+  proceedToWhatsAppCheckout(cartItems, orderSummary, checkoutData);
+  
+  // Clear cart after successful checkout
+  await clearCartAfterCheckout();
+  
+  // Close confirmation modal
+  setShowCheckoutConfirmation(false);
+};
+
+  const handleQuickCheckout = useCallback(async () => {
+    // Add proper validation
+    if (!currentUserId) {
+      setError('Please log in to use quick checkout');
       setShowCustomerForm(true);
       return;
     }
 
-    // Proceed with WhatsApp checkout
-    const finalCustomerInfo = customerInfo.name ? customerInfo : null;
-    proceedToWhatsAppCheckout(cartItems, orderSummary, finalCustomerInfo);
-  }, [cartItems, customerInfo, deliveryCharges, discount, showCustomerForm, subtotal, total]);
-
-  const handleQuickCheckout = useCallback(() => {
-    // Direct checkout without customer form
     const orderSummary = {
       subtotal,
-      discount,
+      discount: 0,
       deliveryCharges,
       total
     };
 
-    proceedToWhatsAppCheckout(cartItems, orderSummary, null);
-  }, [cartItems, deliveryCharges, discount, subtotal, total]);
+    try {
+      const userDocRef = doc(db, 'users', currentUserId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        setError('User data not found. Please fill the form.');
+        setShowCustomerForm(true);
+        return;
+      }
+      
+      const userData = userDoc.data();
+      
+      // Check if user has required phone number
+      if (!userData.phone) {
+        setShowCustomerForm(true);
+        setError('Please provide your phone number for delivery');
+        return;
+      }
+      
+      // Check if user has address saved
+      if (!userData.address) {
+        setShowCustomerForm(true);
+        setError('Please provide your delivery address');
+        return;
+      }
+      
+      // Use database data for quick checkout (including saved address)
+      const quickCheckoutData = {
+        name: userData.name || '',
+        phone: userData.phone,
+        email: userData.email || '',
+        address: userData.address // ✅ Use saved address
+      };
+      
+      // Also update local state to show the saved address
+      setCustomerInfo(quickCheckoutData);
+      
+      // Show confirmation for quick checkout too
+      setShowCheckoutConfirmation(true);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setError('Failed to load user data. Please fill the form.');
+      setShowCustomerForm(true);
+    }
+  }, [cartItems, deliveryCharges, subtotal, total, currentUserId]);
 
   const handleRelatedProductClick = useCallback((productId) => {
     if (onProductClick) {
@@ -390,74 +544,74 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
                 </div>
                 
                 {loadingRelated ? (
-  <div className="flex justify-center items-center py-8 sm:py-12">
-    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-yellow-500"></div>
-    <span className="ml-3 text-gray-600 text-sm">Loading recommendations...</span>
-  </div>
-) : (
-  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-    {relatedProducts.map((product) => (
-      <div
-        key={product.id}
-        className="bg-white border border-gray-200 rounded-lg hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group"
-      >
-        <div 
-          className="relative aspect-square overflow-hidden rounded-t-lg cursor-pointer"
-          onClick={() => handleRelatedProductClick(product.id)}
-        >
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-            onError={(e) => {
-              console.error('Failed to load related product image:', product.image);
-              e.target.src = 'https://via.placeholder.com/300x300/f3f4f6/9ca3af?text=Image+Error';
-            }}
-          />
-          {/* Quick Add Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAddRelatedToCart(product);
-            }}
-            className="absolute bottom-2 right-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0"
-            aria-label="Add to cart"
-          >
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-          </button>
-          
-          {/* Rating Badge */}
-          <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-            <Star className="w-3 h-3 text-yellow-400 fill-current" />
-            <span>{product.rating}</span>
-          </div>
-        </div>
-        
-        <div className="p-3">
-          <h4 className="font-semibold text-gray-800 text-sm mb-2 line-clamp-2 group-hover:text-yellow-600 transition-colors">
-            {product.name}
-          </h4>
-          
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-base font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
-            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full hidden sm:inline-block">
-              {Math.round(20)}% off
-            </span>
-          </div>
-          
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span className="truncate">{product.category}</span>
-            <span className="flex items-center space-x-1">
-              <Star className="w-3 h-3 text-yellow-400 fill-current" />
-              <span>{product.rating}</span>
-            </span>
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+                  <div className="flex justify-center items-center py-8 sm:py-12">
+                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-yellow-500"></div>
+                    <span className="ml-3 text-gray-600 text-sm">Loading recommendations...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {relatedProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="bg-white border border-gray-200 rounded-lg hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group"
+                      >
+                        <div 
+                          className="relative aspect-square overflow-hidden rounded-t-lg cursor-pointer"
+                          onClick={() => handleRelatedProductClick(product.id)}
+                        >
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            onError={(e) => {
+                              console.error('Failed to load related product image:', product.image);
+                              e.target.src = 'https://via.placeholder.com/300x300/f3f4f6/9ca3af?text=Image+Error';
+                            }}
+                          />
+                          {/* Quick Add Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddRelatedToCart(product);
+                            }}
+                            className="absolute bottom-2 right-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0"
+                            aria-label="Add to cart"
+                          >
+                            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                          
+                          {/* Rating Badge */}
+                          <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
+                            <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                            <span>{product.rating}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="p-3">
+                          <h4 className="font-semibold text-gray-800 text-sm mb-2 line-clamp-2 group-hover:text-yellow-600 transition-colors">
+                            {product.name}
+                          </h4>
+                          
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-base font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
+                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full hidden sm:inline-block">
+                              {Math.round(20)}% off
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <span className="truncate">{product.category}</span>
+                            <span className="flex items-center space-x-1">
+                              <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                              <span>{product.rating}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -483,60 +637,6 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
               </div>
 
               <div className="p-4 sm:p-6 space-y-4">
-                {/* Promo Code */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Promo Code
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      placeholder="Enter code"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-sm"
-                    />
-                    <button
-                      onClick={handleApplyPromo}
-                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                  
-                  {/* Available Promo Codes */}
-                  <div className="mt-2">
-                    <div className="text-xs text-gray-500 mb-1">Available codes:</div>
-                    <div className="grid grid-cols-2 gap-1">
-                      {Object.entries(promoCodes).map(([code, details]) => (
-                        <button
-                          key={code}
-                          onClick={() => setPromoCode(code)}
-                          className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors truncate"
-                        >
-                          {code}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {appliedPromoCode && (
-                    <div className="mt-2 flex items-center justify-between p-2 bg-yellow-50 rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        <Tag className="w-4 h-4 text-yellow-600" />
-                        <span className="text-sm text-yellow-700">
-                          {appliedPromoCode} applied
-                        </span>
-                      </div>
-                      <button
-                        onClick={handleRemovePromo}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
 
                 {/* Price Breakdown */}
                 <div className="space-y-3 pt-4 border-t border-gray-200">
@@ -544,13 +644,6 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium">₹{subtotal.toLocaleString()}</span>
                   </div>
-                  
-                  {discount > 0 && (
-                    <div className="flex justify-between text-yellow-600 text-sm sm:text-base">
-                      <span>Discount</span>
-                      <span>-₹{discount.toLocaleString()}</span>
-                    </div>
-                  )}
                   
                   <div className="flex justify-between text-sm sm:text-base">
                     <span className="text-gray-600">Delivery Charges</span>
@@ -584,7 +677,13 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
                   <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                     <h4 className="font-medium text-gray-800 mb-3 flex items-center text-sm">
                       <User className="w-4 h-4 mr-2" />
-                      Customer Information (Optional)
+                      Customer Information
+                      {dataSaved && (
+                        <span className="ml-2 flex items-center text-green-600 text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Saved
+                        </span>
+                      )}
                     </h4>
                     <div className="space-y-3">
                       <input
@@ -596,10 +695,11 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
                       />
                       <input
                         type="tel"
-                        placeholder="Phone Number"
+                        placeholder="Phone Number *"
                         value={customerInfo.phone}
                         onChange={(e) => handleCustomerInfoChange('phone', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                        required
                       />
                       <input
                         type="email"
@@ -609,40 +709,87 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                       />
                       <textarea
-                        placeholder="Delivery Address (Optional)"
+                        placeholder="Delivery Address *"
                         value={customerInfo.address}
                         onChange={(e) => handleCustomerInfoChange('address', e.target.value)}
-                        rows="2"
+                        rows="3"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm resize-none"
+                        required
                       />
                     </div>
+                    
+                    {/* Save Data Button */}
+                    <button
+                      onClick={handleSaveAndContinue}
+                      disabled={isSavingData || !customerInfo.phone || !customerInfo.address}
+                      className={`w-full mt-4 py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm ${
+                        isSavingData || !customerInfo.phone || !customerInfo.address
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-green-500 hover:bg-green-600 text-white transform hover:-translate-y-0.5 hover:shadow-lg'
+                      }`}
+                    >
+                      {isSavingData ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          <span>{dataSaved ? 'Data Saved - Continue' : 'Save & Continue'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                  <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg mb-3">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm">{error}</span>
                   </div>
                 )}
 
                 {/* Checkout Buttons */}
                 <div className="space-y-3">
-                  {/* Main WhatsApp Checkout Button */}
-                  <button
-                    onClick={handleCheckout}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 text-sm sm:text-base"
-                  >
-                    <Phone className="w-5 h-5" />
-                    <span>{showCustomerForm ? 'Complete Order on WhatsApp' : 'Checkout via WhatsApp'}</span>
-                  </button>
+                  {/* Main Checkout Button */}
+                  {!showCustomerForm ? (
+                    <button
+                      onClick={() => setShowCustomerForm(true)}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <Phone className="w-5 h-5" />
+                      <span>Proceed to Checkout</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSaveAndContinue}
+                      disabled={!dataSaved || isSavingData}
+                      className={`w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base ${
+                        !dataSaved || isSavingData
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 transform hover:-translate-y-1 hover:shadow-lg'
+                      }`}
+                    >
+                      <Phone className="w-5 h-5" />
+                      <span>{dataSaved ? 'Checkout via WhatsApp' : 'Save Data First'}</span>
+                    </button>
+                  )}
 
                   {/* Quick Checkout Option */}
-                  {!showCustomerForm && (
+                  {!showCustomerForm && dataSaved && (
                     <button
                       onClick={handleQuickCheckout}
                       className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2"
                     >
                       <Phone className="w-4 h-4" />
-                      <span>Quick Order (Skip Details)</span>
+                      <span>Quick Checkout (Use Saved Data)</span>
                     </button>
                   )}
 
                   {/* Toggle Customer Form */}
-                  {!showCustomerForm && (
+                  {!showCustomerForm && !dataSaved && (
                     <button
                       onClick={() => setShowCustomerForm(true)}
                       className="w-full text-yellow-600 hover:text-yellow-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2 border border-yellow-200 hover:border-yellow-300"
@@ -714,6 +861,63 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Confirmation Modal */}
+      {showCheckoutConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div 
+            className="bg-white rounded-lg p-6 sm:p-8 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Ready to Checkout?</h3>
+              <p className="text-gray-600 text-sm">
+                Your order will be sent via WhatsApp and your cart will be cleared.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+              <h4 className="font-semibold text-gray-800 mb-3 text-sm">Order Summary:</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Items:</span>
+                  <span>{cartItems.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>₹{subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Delivery:</span>
+                  <span>{deliveryCharges === 0 ? 'FREE' : `₹${deliveryCharges}`}</span>
+                </div>
+                <div className="flex justify-between font-bold border-t pt-2">
+                  <span>Total:</span>
+                  <span className="text-yellow-600">₹{total.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowCheckoutConfirmation(false)}
+                className="flex-1 py-3 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFinalCheckout}
+                className="flex-1 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Confirm & Checkout</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

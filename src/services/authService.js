@@ -10,7 +10,7 @@ import { auth, db, COLLECTIONS } from '../firebase/config';
 
 const googleProvider = new GoogleAuthProvider();
 
-export const registerWithEmail = async (name, email, password) => {
+export const registerWithEmail = async (name, email, phone, password) => {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
   
@@ -18,6 +18,7 @@ export const registerWithEmail = async (name, email, password) => {
   await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
     name: name,
     email: email,
+    phone: phone,
     isGoogleAuth: false,
     createdAt: new Date().toISOString(),
     uid: user.uid
@@ -41,6 +42,7 @@ export const loginWithGoogle = async () => {
     await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
       name: user.displayName,
       email: user.email,
+      phone: '',
       isGoogleAuth: true,
       createdAt: new Date().toISOString(),
       uid: user.uid

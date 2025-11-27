@@ -1,4 +1,4 @@
-// App.js - Updated with Firebase integration for cart and wishlist
+// App.js - Updated with proper Firebase Auth integration
 import React, { useState, useEffect } from 'react';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
@@ -12,6 +12,7 @@ import ManageProducts from './pages/ManageProducts';
 import ManageOrders from './pages/ManageOrders';
 import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
+import CustomAlert from './components/common/CustomAlert';
 import { 
   fetchProducts, 
   addProduct, 
@@ -19,11 +20,20 @@ import {
   deleteProduct,
   subscribeToProductsUpdates,
   subscribeToCategoriesUpdates,
-    addToFeaturedProducts, 
-  removeFromFeaturedProducts 
+  addToFeaturedProducts, 
+  removeFromFeaturedProducts
 } from './utils/helpers';
 
-// ADD THESE CART AND WISHLIST IMPORTS
+// Firebase Auth imports
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
+import { auth } from './firebase/config';
+
+// Cart and Wishlist imports
 import { 
   addToCart, 
   removeFromCart, 
@@ -42,14 +52,6 @@ import './App.css';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
-
-// Create a wrapper function to handle view changes with optional parameters
-const handleViewChange = (view, params = {}) => {
-  if (params.category) {
-    setSelectedCategory(params.category);
-  }
-  setCurrentView(view);
-};
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -60,33 +62,59 @@ const handleViewChange = (view, params = {}) => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [alertState, setAlertState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
 
-  // Check for existing session on component mount
+  // Create a wrapper function to handle view changes with optional parameters
+  const handleViewChange = (view, params = {}) => {
+  if (params.category) {
+    setSelectedCategory(params.category);
+  }
+  setCurrentView(view);
+  window.history.pushState({ view }, '', `/${view}`);
+};
+
+  // Check for existing auth state on component mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('thapasyaUser');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      setIsLoggedIn(true);
-      // Check if admin based on email
-      setIsAdmin(userData.email === 'thapasyabangles@gmail.com');
-      
-      // Load user's cart and wishlist if logged in
-      if (userData.uid) {
-        const loadUserData = async () => {
-          try {
-            const userCart = await getCart(userData.uid);
-            const userWishlist = await getWishlist(userData.uid);
-            setCartItems(userCart);
-            setWishlistItems(userWishlist);
-          } catch (error) {
-            console.error('Error loading user data:', error);
-          }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in
+        const userData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+          isGoogleAuth: !!firebaseUser.providerData?.some(provider => provider.providerId === 'google.com')
         };
-        loadUserData();
+        
+        setUser(userData);
+        setIsLoggedIn(true);
+        setIsAdmin(userData.email === 'thapasyabangles@gmail.com');
+        
+        // Load user's cart and wishlist using the actual Firebase UID
+        try {
+          const userCart = await getCart(firebaseUser.uid);
+          const userWishlist = await getWishlist(firebaseUser.uid);
+          setCartItems(userCart);
+          setWishlistItems(userWishlist);
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        }
+      } else {
+        // User is signed out
+        setIsLoggedIn(false);
+        setIsAdmin(false);
+        setUser(null);
+        setCartItems([]);
+        setWishlistItems([]);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Load products from Firebase
@@ -98,105 +126,183 @@ const handleViewChange = (view, params = {}) => {
     return () => unsubscribe && unsubscribe();
   }, []);
 
-  // Handle user login
-  const handleLogin = (email, password, isGoogleAuth = false, googleUser = null) => {
-    let userData;
+  // Add this useEffect in App.js
+useEffect(() => {
+  const handleBackButton = () => {
+    console.log('Back button pressed, current view:', currentView);
     
-    if (isGoogleAuth) {
-      userData = {
-        ...googleUser,
-        uid: googleUser.uid
-      };
-    } else {
-      // Email/password login
-      userData = {
-        email: email,
-        name: email.split('@')[0],
-        isGoogleAuth: false,
-        uid: email // Using email as UID fallback, you should get actual UID from Firebase Auth
-      };
+    switch (currentView) {
+      case 'product-details':
+        handleBackToProducts();
+        break;
+      case 'cart':
+      case 'wishlist':
+        setCurrentView('products');
+        break;
+      case 'register':
+        setCurrentView('login');
+        break;
+      case 'admin-products':
+      case 'admin-orders':
+        setCurrentView('admin-dashboard');
+        break;
+      case 'products':
+      case 'login':
+      case 'admin-dashboard':
+        setCurrentView('home');
+        break;
+      case 'home':
+        // Let browser handle normally (exit app)
+        return;
+      default:
+        setCurrentView('home');
     }
+    
+    // Prevent default browser back behavior since we handled it
+    window.history.pushState(null, '', window.location.href);
+  };
 
-    // Check if admin (based on email)
-    const adminUser = email === 'thapasyabangles@gmail.com';
-    
-    setUser(userData);
-    setIsLoggedIn(true);
-    setIsAdmin(adminUser);
-    
-    // Save to localStorage
-    localStorage.setItem('thapasyaUser', JSON.stringify(userData));
-    
-    // Load user's cart and wishlist after login
-    const loadUserData = async () => {
+  // Initialize history
+  window.history.pushState(null, '', window.location.href);
+  
+  // Add event listener
+  window.addEventListener('popstate', handleBackButton);
+  
+  return () => {
+    window.removeEventListener('popstate', handleBackButton);
+  };
+}, [currentView]);
+
+
+  const showAlert = (title, message, type = 'info') => {
+    setAlertState({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertState(prev => ({ ...prev, isOpen: false }));
+  };
+
+  // Handle user login with Firebase Auth
+  const handleLogin = async (email, password, isGoogleAuth = false, googleUser = null) => {
+    try {
+      let userData;
+      let userUid;
+
+      if (isGoogleAuth) {
+        // Google Auth - user data comes from Google
+        userData = {
+          ...googleUser,
+          uid: googleUser.uid
+        };
+        userUid = googleUser.uid;
+      } else {
+        // Email/password login
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+        
+        userData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || email.split('@')[0],
+          isGoogleAuth: false
+        };
+        userUid = firebaseUser.uid;
+      }
+
+      // Check if admin (based on email)
+      const adminUser = userData.email === 'thapasyabangles@gmail.com';
+      
+      setUser(userData);
+      setIsLoggedIn(true);
+      setIsAdmin(adminUser);
+      
+      // Load user's cart and wishlist using the actual Firebase UID
       try {
-        const userCart = await getCart(userData.uid);
-        const userWishlist = await getWishlist(userData.uid);
+        const userCart = await getCart(userUid);
+        const userWishlist = await getWishlist(userUid);
         setCartItems(userCart);
         setWishlistItems(userWishlist);
       } catch (error) {
         console.error('Error loading user data after login:', error);
       }
-    };
-    loadUserData();
-    
-    // Check if there's a product to add to cart after login
-    if (selectedProductId) {
-      const productToAdd = products.find(p => p.id === selectedProductId);
-      if (productToAdd) {
-        handleAddToCart(productToAdd);
+      
+      // Check if there's a product to add to cart after login
+      if (selectedProductId) {
+        const productToAdd = products.find(p => p.id === selectedProductId);
+        if (productToAdd) {
+          handleAddToCart(productToAdd);
+        }
+        setSelectedProductId(null);
       }
-      setSelectedProductId(null);
+      
+      // Redirect based on role
+      setCurrentView(adminUser ? 'admin-dashboard' : 'home');
+      
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      showAlert('Login Failed', error.message, 'error');
+      return false;
     }
-    
-    // Redirect based on role
-    setCurrentView(adminUser ? 'admin-dashboard' : 'home');
-    
-    return true;
   };
 
-  // Handle user registration
-  const handleRegister = (formData, isGoogleAuth = false) => {
-    let userData;
-    
-    if (isGoogleAuth) {
-      userData = {
-        ...formData,
-        uid: formData.uid
-      };
-    } else {
-      userData = {
-        name: formData.name,
-        email: formData.email,
-        isGoogleAuth: false,
-        uid: formData.email // Using email as UID fallback
-      };
-    }
+  // Handle user registration with Firebase Auth
+  const handleRegister = async (formData, isGoogleAuth = false) => {
+    try {
+      let userData;
+      let userUid;
 
-    // Check if admin (based on email)
-    const adminUser = userData.email === 'thapasyabangles@gmail.com';
-    
-    setUser(userData);
-    setIsLoggedIn(true);
-    setIsAdmin(adminUser);
-    
-    // Save to localStorage
-    localStorage.setItem('thapasyaUser', JSON.stringify(userData));
-    
-    // Redirect based on role
-    setCurrentView(adminUser ? 'admin-dashboard' : 'home');
-    
-    return true;
+      if (isGoogleAuth) {
+        // Google Auth registration
+        userData = {
+          ...formData,
+          uid: formData.uid
+        };
+        userUid = formData.uid;
+      } else {
+        // Email/password registration
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const firebaseUser = userCredential.user;
+        
+        userData = {
+          uid: firebaseUser.uid,
+          name: formData.name,
+          email: formData.email,
+          isGoogleAuth: false
+        };
+        userUid = firebaseUser.uid;
+      }
+
+      // Check if admin (based on email)
+      const adminUser = userData.email === 'thapasyabangles@gmail.com';
+      
+      setUser(userData);
+      setIsLoggedIn(true);
+      setIsAdmin(adminUser);
+      
+      // Redirect based on role
+      setCurrentView(adminUser ? 'admin-dashboard' : 'home');
+      
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
+      showAlert('Registration Failed', error.message, 'error');
+      return false;
+    }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    setUser(null);
-    setCartItems([]);
-    setWishlistItems([]);
-    localStorage.removeItem('thapasyaUser');
-    setCurrentView('home');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // The onAuthStateChanged listener will handle the state cleanup
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const switchToRegister = () => {
@@ -207,64 +313,65 @@ const handleViewChange = (view, params = {}) => {
     setCurrentView('login');
   };
 
-const handleProductClick = (productId) => {
-  console.log('Navigating to product:', productId);
+ const handleProductClick = (productId) => {
   setSelectedProductId(productId);
   setCurrentView('product-details');
+  window.history.pushState({ view: 'product-details' }, '', `/product/${productId}`);
 };
 
   const handleBackToProducts = () => {
-    setSelectedProductId(null);
-    setCurrentView('products');
+  setSelectedProductId(null);
+  setCurrentView('products');
+  window.history.pushState({ view: 'products' }, '', '/products');
+};
+
+  const handleAddProduct = async (productData) => {
+    try {
+      const productId = await addProduct(productData);
+      
+      // Handle featured products
+      if (productData.isFeatured) {
+        await addToFeaturedProducts({ ...productData, id: productId });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error adding product:', error);
+      showAlert('Error', 'Error adding product. Please try again.', 'error');
+      return false;
+    }
   };
 
-const handleAddProduct = async (productData) => {
-  try {
-    const productId = await addProduct(productData);
-    
-    // Handle featured products
-    if (productData.isFeatured) {
-      await addToFeaturedProducts({ ...productData, id: productId });
+  const handleUpdateProduct = async (id, productData) => {
+    try {
+      await updateProduct(id, productData);
+      
+      // Handle featured products
+      if (productData.isFeatured) {
+        await addToFeaturedProducts({ ...productData, id: id });
+      } else {
+        await removeFromFeaturedProducts(id);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      showAlert('Error', 'Error updating product. Please try again.', 'error');
+      return false;
     }
-    
-    return true;
-  } catch (error) {
-    console.error('Error adding product:', error);
-    alert('Error adding product. Please try again.');
-    return false;
-  }
-};
+  };
 
-const handleUpdateProduct = async (id, productData) => {
-  try {
-    await updateProduct(id, productData);
-    
-    // Handle featured products
-    if (productData.isFeatured) {
-      await addToFeaturedProducts({ ...productData, id: id });
-    } else {
-      await removeFromFeaturedProducts(id);
+  const handleDeleteProduct = async (id) => {
+    try {
+      await deleteProduct(id);
+      await removeFromFeaturedProducts(id); // Remove from featured too
+      return true;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      showAlert('Error', 'Error deleting product. Please try again.', 'error');
+      return false;
     }
-    
-    return true;
-  } catch (error) {
-    console.error('Error updating product:', error);
-    alert('Error updating product. Please try again.');
-    return false;
-  }
-};
-
-const handleDeleteProduct = async (id) => {
-  try {
-    await deleteProduct(id);
-    await removeFromFeaturedProducts(id); // Remove from featured too
-    return true;
-  } catch (error) {
-    console.error('Error deleting product:', error);
-    alert('Error deleting product. Please try again.');
-    return false;
-  }
-};
+  };
 
   const updateOrderStatus = (orderId, status) => {
     setOrders(orders.map(order => 
@@ -272,63 +379,77 @@ const handleDeleteProduct = async (id) => {
     ));
   };
 
-// In App.js, update handleAddToCart function:
-const handleAddToCart = async (product) => {
-  // Check if size is required but not selected
-  if (product.sizes && product.sizes.length > 0 && !product.selectedSize) {
-    alert('Please select a size before adding to cart');
-    return;
-  }
-
-  if (!isLoggedIn) {
-    setSelectedProductId(product.id);
-    setCurrentView('login');
-    return;
-  }
-
-  try {
-    await addToCart(user.uid, product);
-    // Update local state
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => 
-        item.id === product.id && item.selectedSize === product.selectedSize
+  const handleAddToCart = async (product) => {
+    // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+    const sizeRequired = product.sizes && product.sizes.length > 0 && 
+                        product.category !== 'Hair Accessories' && 
+                        product.category !== 'Return Gifts';
+    
+    if (sizeRequired && !product.selectedSize) {
+      showAlert(
+        'Size Required', 
+        'Please select a size before adding to cart', 
+        'warning'
       );
-      if (existingItem) {
-        return prevItems.map(item =>
-          item.id === product.id && item.selectedSize === product.selectedSize
-            ? { ...item, quantity: item.quantity + 1 } 
-            : item
-        );
-      } else {
-        return [...prevItems, { ...product, quantity: 1 }];
-      }
-    });
-  } catch (error) {
-    console.error('Error adding to cart:', error);
-    alert('Error adding product to cart');
-  }
-};
+      return;
+    }
 
-// Add function to update size in cart
-const handleUpdateCartSize = async (productId, newSize) => {
-  if (!isLoggedIn) return;
-  
-  try {
-    // You'll need to create updateCartSize function in cartHelpers
-    await updateCartSize(user.uid, productId, newSize);
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === productId ? { ...item, selectedSize: newSize } : item
-      )
-    );
-  } catch (error) {
-    console.error('Error updating cart size:', error);
-    alert('Error updating product size');
-  }
-};
+    if (!isLoggedIn || !user?.uid) {
+      setSelectedProductId(product.id);
+      setCurrentView('login');
+      return;
+    }
+
+    try {
+      // Create a clean product object without undefined fields
+      const cleanProduct = {
+        ...product,
+        selectedSize: product.selectedSize || null // Convert undefined to null for Firebase
+      };
+      
+      // Use the actual Firebase UID as document ID
+      await addToCart(user.uid, cleanProduct);
+      
+      // Update local state
+      setCartItems(prevItems => {
+        const existingItem = prevItems.find(item => 
+          item.id === cleanProduct.id && item.selectedSize === cleanProduct.selectedSize
+        );
+        if (existingItem) {
+          return prevItems.map(item =>
+            item.id === cleanProduct.id && item.selectedSize === cleanProduct.selectedSize
+              ? { ...item, quantity: item.quantity + 1 } 
+              : item
+          );
+        } else {
+          return [...prevItems, { ...cleanProduct, quantity: 1 }];
+        }
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      showAlert('Error', 'Error adding product to cart', 'error');
+    }
+  };
+
+  // Add function to update size in cart
+  const handleUpdateCartSize = async (productId, newSize) => {
+    if (!isLoggedIn || !user?.uid) return;
+    
+    try {
+      await updateCartSize(user.uid, productId, newSize);
+      setCartItems(prevItems =>
+        prevItems.map(item =>
+          item.id === productId ? { ...item, selectedSize: newSize } : item
+        )
+      );
+    } catch (error) {
+      console.error('Error updating cart size:', error);
+      showAlert('Error', 'Error updating product size', 'error');
+    }
+  };
 
   const handleUpdateCartQuantity = async (productId, quantity) => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !user?.uid) return;
     
     try {
       await updateCartQuantity(user.uid, productId, quantity);
@@ -340,12 +461,12 @@ const handleUpdateCartSize = async (productId, newSize) => {
       );
     } catch (error) {
       console.error('Error updating cart quantity:', error);
-      alert('Error updating cart quantity');
+      showAlert('Error', 'Error updating cart quantity', 'error');
     }
   };
 
   const handleRemoveFromCart = async (productId) => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !user?.uid) return;
     
     try {
       await removeFromCart(user.uid, productId);
@@ -353,66 +474,81 @@ const handleUpdateCartSize = async (productId, newSize) => {
       setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
     } catch (error) {
       console.error('Error removing from cart:', error);
-      alert('Error removing product from cart');
+      showAlert('Error', 'Error removing product from cart', 'error');
     }
   };
 
-// In App.js, update handleAddToWishlist function:
-const handleAddToWishlist = async (product) => {
-  // Check if size is required but not selected
-  if (product.sizes && product.sizes.length > 0 && !product.selectedSize) {
-    alert('Please select a size before adding to wishlist');
-    return;
-  }
+  const handleAddToWishlist = async (product) => {
+    // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+    const sizeRequired = product.sizes && product.sizes.length > 0 && 
+                        product.category !== 'Hair Accessories' && 
+                        product.category !== 'Return Gifts';
+    
+    if (sizeRequired && !product.selectedSize) {
+      showAlert(
+        'Size Required', 
+        'Please select a size before adding to wishlist', 
+        'warning'
+      );
+      return;
+    }
 
-  if (!isLoggedIn) {
-    setSelectedProductId(product.id);
-    setCurrentView('login');
-    return;
-  }
+    if (!isLoggedIn || !user?.uid) {
+      setSelectedProductId(product.id);
+      setCurrentView('login');
+      return;
+    }
 
-  try {
-    await addToWishlist(user.uid, product);
-    // Update local state
-    setWishlistItems(prevItems => {
-      if (prevItems.some(item => item.id === product.id && item.selectedSize === product.selectedSize)) {
-        return prevItems;
-      }
-      return [...prevItems, product];
-    });
-  } catch (error) {
-    console.error('Error adding to wishlist:', error);
-    alert('Error adding product to wishlist');
-  }
-};
+    try {
+      // Create a clean product object without undefined fields
+      const cleanProduct = {
+        ...product,
+        selectedSize: product.selectedSize || null // Convert undefined to null for Firebase
+      };
+      
+      // Use the actual Firebase UID as document ID
+      await addToWishlist(user.uid, cleanProduct);
+      
+      // Update local state
+      setWishlistItems(prevItems => {
+        if (prevItems.some(item => item.id === cleanProduct.id && item.selectedSize === cleanProduct.selectedSize)) {
+          return prevItems;
+        }
+        return [...prevItems, cleanProduct];
+      });
+    } catch (error) {
+      console.error('Error adding to wishlist:', error);
+      showAlert('Error', 'Error adding product to wishlist', 'error');
+    }
+  };
 
-const handleRemoveFromWishlist = async (productId, selectedSize = null) => {
-  if (!isLoggedIn) return;
-  
-  try {
-    await removeFromWishlist(user.uid, productId);
-    // Update local state - FIX: Remove based on both ID and size
-    setWishlistItems(prevItems => 
-      prevItems.filter(item => 
-        !(item.id === productId && 
-          (selectedSize ? item.selectedSize === selectedSize : true))
-      )
-    );
-  } catch (error) {
-    console.error('Error removing from wishlist:', error);
-    alert('Error removing product from wishlist');
-  }
-};
+  const handleRemoveFromWishlist = async (productId, selectedSize = null) => {
+    if (!isLoggedIn || !user?.uid) return;
+    
+    try {
+      await removeFromWishlist(user.uid, productId);
+      // Update local state - FIX: Remove based on both ID and size
+      setWishlistItems(prevItems => 
+        prevItems.filter(item => 
+          !(item.id === productId && 
+            (selectedSize !== undefined ? item.selectedSize === selectedSize : true))
+        )
+      );
+    } catch (error) {
+      console.error('Error removing from wishlist:', error);
+      showAlert('Error', 'Error removing product from wishlist', 'error');
+    }
+  };
 
   const handleClearWishlist = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !user?.uid) return;
     
     try {
       await clearWishlist(user.uid);
       setWishlistItems([]);
     } catch (error) {
       console.error('Error clearing wishlist:', error);
-      alert('Error clearing wishlist');
+      showAlert('Error', 'Error clearing wishlist', 'error');
     }
   };
 
@@ -436,7 +572,7 @@ const handleRemoveFromWishlist = async (productId, selectedSize = null) => {
     switch (currentView) {
       case 'home':
         return <HomePage 
-        setCurrentView={handleViewChange}
+          setCurrentView={handleViewChange}
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
           onRemoveFromWishlist={handleRemoveFromWishlist}
@@ -453,8 +589,8 @@ const handleRemoveFromWishlist = async (productId, selectedSize = null) => {
           onAddToCart={handleAddToCart}
           wishlistItems={wishlistItems}
           cartItems={cartItems}
-          setCurrentView={handleViewChange}  // Changed from setCurrentView
-          initialCategory={selectedCategory}  // Added this
+          setCurrentView={handleViewChange}
+          initialCategory={selectedCategory}
         />;
       case 'product-details':
         const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -486,8 +622,10 @@ const handleRemoveFromWishlist = async (productId, selectedSize = null) => {
           onUpdateQuantity={handleUpdateCartQuantity}
           onRemoveItem={handleRemoveFromCart}
           onBack={() => setCurrentView('products')}
-          onProductClick={handleProductClick} // ADD THIS
+          onProductClick={handleProductClick}
           onAddToCart={handleAddToCart}
+          onUpdateCartSize={handleUpdateCartSize}
+          currentUserId={user?.uid}
         />;
       case 'wishlist':
         return <WishlistPage 
@@ -573,6 +711,13 @@ const handleRemoveFromWishlist = async (productId, selectedSize = null) => {
       <main className="min-h-screen">
         {renderCurrentView()}
       </main>
+      <CustomAlert
+        isOpen={alertState.isOpen}
+        onClose={closeAlert}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+      />
       <Footer />
     </div>
   );

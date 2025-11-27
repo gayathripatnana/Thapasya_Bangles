@@ -51,52 +51,57 @@ const ProductCard = ({
     }
   };
 
-  const handleWishlistClick = (e) => {
-    e.stopPropagation();
+const handleWishlistClick = (e) => {
+  e.stopPropagation();
+  
+  const productInWishlist = wishlistItems ? 
+    wishlistItems.some(item => item.id === product.id) : 
+    isInWishlist;
+  
+  if (productInWishlist) {
+    onRemoveFromWishlist && onRemoveFromWishlist(product.id, selectedSize);
+  } else {
+    // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+    const sizeRequired = product.sizes && product.sizes.length > 0 && 
+                        product.category !== 'Hair Accessories' && 
+                        product.category !== 'Return Gifts';
     
-    // Check if product is in wishlist (considering size)
-    const productInWishlist = wishlistItems ? 
-      wishlistItems.some(item => item.id === product.id) : 
-      isInWishlist;
-    
-    if (productInWishlist) {
-      // Remove from wishlist - pass both ID and size
-      onRemoveFromWishlist && onRemoveFromWishlist(product.id, selectedSize);
-    } else {
-      // Check if size is required but not selected
-      if (product.sizes && product.sizes.length > 0 && !selectedSize) {
-        setShowSizeModal(true);
-        return;
-      }
-      
-      // Add to wishlist with selected size
-      onAddToWishlist && onAddToWishlist({
-        ...product,
-        selectedSize: selectedSize
-      });
-    }
-  };
-
-  const handleCartClick = (e) => {
-    e.stopPropagation();
-    
-    // Check if size is required but not selected
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+    if (sizeRequired && !selectedSize) {
       setShowSizeModal(true);
       return;
     }
-
-    const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
     
-    if (productInCart) {
-      navigateToCart && navigateToCart();
-    } else {
-      onAddToCart && onAddToCart({
-        ...product,
-        selectedSize: selectedSize
-      });
-    }
-  };
+    onAddToWishlist && onAddToWishlist({
+      ...product,
+      selectedSize: selectedSize
+    });
+  }
+};
+
+const handleCartClick = (e) => {
+  e.stopPropagation();
+  
+  // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+  const sizeRequired = product.sizes && product.sizes.length > 0 && 
+                      product.category !== 'Hair Accessories' && 
+                      product.category !== 'Return Gifts';
+  
+  if (sizeRequired && !selectedSize) {
+    setShowSizeModal(true);
+    return;
+  }
+
+  const productInCart = cartItems ? cartItems.some(item => item.id === product.id) : isInCart;
+  
+  if (productInCart) {
+    navigateToCart && navigateToCart();
+  } else {
+    onAddToCart && onAddToCart({
+      ...product,
+      selectedSize: selectedSize
+    });
+  }
+};
 
   const handleSizeSelect = (size) => {
     setSelectedSize(size);
@@ -327,10 +332,6 @@ const ProductCard = ({
                   Out of Stock
                 </button>
               )}
-              
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-gray-600 text-xs">Free delivery • Easy returns</p>
-              </div>
             </>
           )}
 

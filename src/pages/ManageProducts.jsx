@@ -48,10 +48,10 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
   // Static categories
   const categoryOptions = ['All', 'Bridal Bangles', 'Glass Bangles', 'Give Aways', 'Traditional', 'Hair Accessories'];
 
-  // Memoized filtered products for performance
-    // Memoized filtered products for performance
-  const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+// Memoized filtered products for performance
+const filteredProducts = useMemo(() => {
+  return products
+    .filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
       const matchesStock = () => {
@@ -66,8 +66,9 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
       };
       
       return matchesSearch && matchesCategory && matchesStock();
-    });
-  }, [products, searchTerm, selectedCategory, stockFilter]);
+    })
+    .sort((a, b) => b.id - a.id); // Add this line - sort by ID descending
+}, [products, searchTerm, selectedCategory, stockFilter]);
 
   // Process products with Google Drive URL conversion - ADD THIS HERE
   const processedProducts = useMemo(() => {

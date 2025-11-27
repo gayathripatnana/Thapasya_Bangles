@@ -8,7 +8,7 @@ import {
   subscribeToCategoriesUpdates,
   fetchCategoryImages 
 } from '../utils/helpers';
-
+import CustomAlert from '../components/common/CustomAlert';
 const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFromWishlist, onAddToCart, wishlistItems, cartItems }) => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [currentFeatured, setCurrentFeatured] = useState(0);
@@ -21,6 +21,12 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [selectedSizes, setSelectedSizes] = useState({});
   const [customerReviews, setCustomerReviews] = useState([]);
+  const [alertState, setAlertState] = useState({
+  isOpen: false,
+  title: '',
+  message: '',
+  type: 'info'
+});
 
   // Default fallback images
   const defaultHeroImages = [
@@ -354,15 +360,29 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
       const categoryMap = {
         'all': 'all',
         'bridal': 'Bridal Bangles',
+        'semi_bridal': 'Semi Bridal', 
         'side': 'Side Bangles',
         'hair_accessories': 'Hair Accessories',
-        'traditional': 'Traditional',
         'return_gifts': 'Return Gifts'
       };
       
       setCurrentView('products', { category: categoryMap[categoryId] || categoryId });
     }
   };
+
+
+  const showAlert = (title, message, type = 'info') => {
+  setAlertState({
+    isOpen: true,
+    title,
+    message,
+    type
+  });
+};
+
+const closeAlert = () => {
+  setAlertState(prev => ({ ...prev, isOpen: false }));
+};
 
   const nextFeatured = () => {
     if (featuredProducts && featuredProducts.length > 0) {
@@ -396,48 +416,63 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
     }));
   };
 
-  const handleAddToCart = (product) => {
-    const selectedSize = selectedSizes[product.id];
+const handleAddToCart = (product) => {
+  const selectedSize = selectedSizes[product.id];
+  
+  // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+  const sizeRequired = product.sizes && product.sizes.length > 0 && 
+                      product.category !== 'Hair Accessories' && 
+                      product.category !== 'Return Gifts';
+  
+  if (sizeRequired && !selectedSize) {
+    showAlert(
+      'Size Required', 
+      'Please select a size before adding to cart', 
+      'warning'
+    );
+    return;
+  }
+
+  onAddToCart && onAddToCart({
+    ...product,
+    selectedSize: selectedSize
+  });
+};
+
+const handleWishlistClick = (product) => {
+  const productInWishlist = isInWishlist(product.id);
+  
+  if (productInWishlist) {
+    onRemoveFromWishlist && onRemoveFromWishlist(product.id);
+  } else {
+    // Check if size is required but not selected (skip for Hair Accessories and Return Gifts)
+    const sizeRequired = product.sizes && product.sizes.length > 0 && 
+                        product.category !== 'Hair Accessories' && 
+                        product.category !== 'Return Gifts';
     
-    // Check if size is required but not selected
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
-      alert('Please select a size before adding to cart');
+    if (sizeRequired && !selectedSizes[product.id]) {
+      showAlert(
+        'Size Required', 
+        'Please select a size before adding to wishlist', 
+        'warning'
+      );
       return;
     }
-
-    onAddToCart && onAddToCart({
+    onAddToWishlist && onAddToWishlist({
       ...product,
-      selectedSize: selectedSize
+      selectedSize: selectedSizes[product.id]
     });
-  };
+  }
+};
 
-  const handleWishlistClick = (product) => {
-    const productInWishlist = isInWishlist(product.id);
-    
-    if (productInWishlist) {
-      // If already in wishlist, remove it - FIXED: Pass only product ID
-      onRemoveFromWishlist && onRemoveFromWishlist(product.id);
-    } else {
-      // If not in wishlist, add it (with size check)
-      if (product.sizes && product.sizes.length > 0 && !selectedSizes[product.id]) {
-        alert('Please select a size before adding to wishlist');
-        return;
-      }
-      onAddToWishlist && onAddToWishlist({
-        ...product,
-        selectedSize: selectedSizes[product.id]
-      });
-    }
-  };
-
-  const staticCategories = [
-    { id: 'all', title: 'All', gradient: 'from-gray-600 to-gray-700' },
-    { id: 'bridal', title: 'Bridal Bangles', gradient: 'from-yellow-600 to-yellow-700' },
-    { id: 'side', title: 'Side Bangles', gradient: 'from-yellow-500 to-yellow-600' },
-    { id: 'hair_accessories', title: 'Hair Accessories', gradient: 'from-yellow-400 to-yellow-500' },
-    { id: 'traditional', title: 'Traditional', gradient: 'from-yellow-700 to-yellow-800' },
-    { id: 'return_gifts', title: 'Return Gifts', gradient: 'from-yellow-300 to-yellow-400' }
-  ];
+const staticCategories = [
+  { id: 'all', title: 'All', gradient: 'from-gray-600 to-gray-700' },
+  { id: 'bridal', title: 'Bridal Bangles', gradient: 'from-yellow-600 to-yellow-700' },
+  { id: 'semi_bridal', title: 'Semi Bridal', gradient: 'from-yellow-700 to-yellow-800' },
+  { id: 'side', title: 'Side Bangles', gradient: 'from-yellow-500 to-yellow-600' },
+  { id: 'hair_accessories', title: 'Hair Accessories', gradient: 'from-yellow-400 to-yellow-500' },
+  { id: 'return_gifts', title: 'Return Gifts', gradient: 'from-yellow-300 to-yellow-400' }
+];
 
   const visibleCategories = staticCategories.filter(cat => 
     cat.id === 'all' || categoryImages[cat.id]
@@ -445,148 +480,58 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section with Auto-scrolling Images */}
-      <section className="relative bg-gradient-to-br from-yellow-50 via-purple-50 to-indigo-50 py-0 sm:py-8 lg:py-12 overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Ccircle cx='20' cy='20' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
-        </div>
-
-        <div className="container mx-auto px-0 sm:px-4 relative">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
-            {/* Text Content */}
-            <div className="hidden lg:block lg:w-1/2 text-center lg:text-left mb-8 lg:mb-0">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-3 leading-tight">
-                Beautiful <br />
-                <span className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent">
-                  Bangles Collection
-                </span>
-              </h1>
-              
-              <p className="text-sm sm:text-base lg:text-lg text-gray-600 mb-6 leading-relaxed">
-                Handcrafted bangles blending traditional artistry with modern elegance. 
-                Each piece is carefully crafted to make you shine.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <button 
-                  onClick={() => setCurrentView && setCurrentView('products', { category: 'all' })}
-                  className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center text-sm sm:text-base"
-                >
-                  Shop Now
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </button>
-                
-                <button 
-                  onClick={handleWhatsAppOrder}
-                  className="border-2 border-yellow-500 text-yellow-600 px-6 py-3 rounded-full font-semibold hover:bg-yellow-50 transition-all duration-300 flex items-center justify-center text-sm sm:text-base"
-                >
-                  <Phone className="w-4 h-4 mr-2" />
-                  Order on WhatsApp
-                </button>
-              </div>
-            </div>
-
-            {/* Image Carousel */}
-            <div className="lg:w-1/2 w-full relative">
-              {loading ? (
-                <div className="aspect-square lg:aspect-video rounded-2xl bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-                    <span className="text-gray-600 font-medium">Loading images...</span>
-                  </div>
-                </div>
-              ) : error ? (
-                <div className="aspect-square lg:aspect-video rounded-2xl bg-red-50 flex items-center justify-center p-6">
-                  <div className="text-center">
-                    <p className="text-red-600 mb-2">Failed to load carousel images</p>
-                    <p className="text-sm text-gray-600">Using default images</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="relative rounded-none sm:rounded-2xl overflow-hidden shadow-2xl">
-                    <div className="aspect-[9/10] sm:aspect-[4/5] lg:aspect-video overflow-hidden bg-gray-100 relative">
-                    {heroImages.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`Bangles Collection ${index + 1}`}
-                        className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-1000 ${
-                          index === currentImage ? 'opacity-100 z-10' : 'opacity-0 z-0'
-                        }`}
-                        loading={index === 0 ? 'eager' : 'lazy'}
-                        onError={(e) => {
-                          console.error('Image failed to load:', image);
-                          // Use a more reliable fallback
-                          e.target.src = `https://via.placeholder.com/800x600/f8f9fa/6c757d?text=Thapasya+Bangles+${index+1}`;
-                          e.target.onerror = null; // Prevent infinite loop
-                        }}
-                      />
-                    ))}
-
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10 pointer-events-none">
-  <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-    <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 leading-tight">
-      <span className="text-white drop-shadow-2xl">Thapasya </span>
-      <span className="bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-2xl">Bangles</span>
-    </h2>
-    <p className="text-lg sm:text-xl md:text-2xl text-white/90 drop-shadow-lg font-medium mb-6">
-      Handcrafted Elegance • Traditional Beauty • Modern Style
-    </p>
-    <div className="flex flex-col sm:flex-row gap-4">
-      <button 
-        onClick={() => setCurrentView && setCurrentView('products', { category: 'all' })}
-        className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-8 py-3 rounded-full font-semibold hover:bg-white/30 transition-all duration-300 pointer-events-auto shadow-xl"
-      >
-        Explore Collection
-      </button>
+{/* Hero Section - Text Overlay on Image */}
+<div className="relative w-full overflow-hidden">
+  {/* Background Image */}
+  <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[500px]">
+    <img 
+      src={heroImages[0] || defaultHeroImages[0]} 
+      alt="Bridal bangles background"
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        e.target.src = defaultHeroImages[0];
+      }}
+    />
+    
+    {/* Dark Overlay for better text readability */}
+    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent"></div>
+    
+    {/* Text Content Overlay */}
+    <div className="absolute inset-0 container mx-auto px-4 sm:px-6 lg:px-8 flex items-center">
+      <div className="max-w-xl lg:max-w-2xl space-y-3 sm:space-y-4 lg:space-y-6">
+        
+        {/* Main Heading */}
+        <h1 className="font-serif leading-tight">
+          <span className="block text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-[#D4AF37] font-normal">
+            Grace That
+          </span>
+          <span className="block text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-[#D4AF37] font-normal">
+            Speaks Tradition
+          </span>
+        </h1>
+        
+        {/* Description */}
+        <p className="text-white text-sm sm:text-base lg:text-lg xl:text-xl leading-relaxed">
+          Handcrafted bridal bangles<br/>
+          that elevate every moment.
+        </p>
+        
+      </div>
+    </div>
+    
+    {/* Small Preview Image in Corner */}
+<div className="absolute top-7 right-10 sm:top-16 sm:right-6 lg:top-20 lg:right-10 w-24 h-32 sm:w-32 sm:h-40 lg:w-40 lg:h-52 xl:w-48 xl:h-60 border-3 sm:border-4 border-white rounded-lg overflow-hidden shadow-2xl">
+      <img 
+        src={heroImages[1] || defaultHeroImages[1]} 
+        alt="Bangles preview"
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          e.target.src = defaultHeroImages[1];
+        }}
+      />
     </div>
   </div>
-  </div>
-  </div>  
-                  
-                  {/* Navigation Arrows - VISIBLE ONLY ON DESKTOP */}
-                  {heroImages.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => setCurrentImage((prev) => (prev - 1 + heroImages.length) % heroImages.length)}
-                        className="hidden lg:block absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all duration-300 z-20"
-                        aria-label="Previous image"
-                      >
-                        <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-800" />
-                      </button>
-                      <button
-                        onClick={() => setCurrentImage((prev) => (prev + 1) % heroImages.length)}
-                        className="hidden lg:block absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all duration-300 z-20"
-                        aria-label="Next image"
-                      >
-                        <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-800" />
-                      </button>
-                    </>
-                  )}
-                  
-                  {/* Image Dots */}
-                  {heroImages.length > 1 && (
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
-                      {heroImages.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentImage(index)}
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            index === currentImage ? 'bg-white w-8' : 'bg-white/50 w-2'
-                          }`}
-                          aria-label={`Go to image ${index + 1}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+</div>
 
       {/* Categories Section */}
       <section className="py-8 sm:py-12 bg-white">
@@ -1070,6 +1015,14 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
           </div>
         </div>
       </section>
+
+      <CustomAlert
+  isOpen={alertState.isOpen}
+  onClose={closeAlert}
+  title={alertState.title}
+  message={alertState.message}
+  type={alertState.type}
+/>
 
       {/* Floating WhatsApp Button */}
       <button

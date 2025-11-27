@@ -112,59 +112,60 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
     }
   }, [product]);
 
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'Product name is required';
-    } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Product name must be at least 3 characters';
-    }
-    
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      newErrors.price = 'Valid price is required';
-    } else if (parseFloat(formData.price) > 100000) {
-      newErrors.price = 'Price cannot exceed ₹1,00,000';
-    }
-    
-    // Validate multiple images
-    if (!formData.images || formData.images.length === 0) {
-      newErrors.images = 'At least one image is required';
-    } else {
-      // Check each image URL
-      for (let i = 0; i < formData.images.length; i++) {
-        const img = formData.images[i];
-        if (!img.trim()) {
-          newErrors.images = `Image ${i + 1} URL is required`;
-          break;
-        } else if (!isValidUrl(img)) {
-          newErrors.images = `Image ${i + 1} URL is invalid`;
-          break;
-        }
+const validateForm = () => {
+  const newErrors = {};
+  
+  if (!formData.name.trim()) {
+    newErrors.name = 'Product name is required';
+  } else if (formData.name.trim().length < 3) {
+    newErrors.name = 'Product name must be at least 3 characters';
+  }
+  
+  if (!formData.price || parseFloat(formData.price) <= 0) {
+    newErrors.price = 'Valid price is required';
+  } else if (parseFloat(formData.price) > 100000) {
+    newErrors.price = 'Price cannot exceed ₹1,00,000';
+  }
+  
+  // Validate multiple images
+  if (!formData.images || formData.images.length === 0) {
+    newErrors.images = 'At least one image is required';
+  } else {
+    // Check each image URL
+    for (let i = 0; i < formData.images.length; i++) {
+      const img = formData.images[i];
+      if (!img.trim()) {
+        newErrors.images = `Image ${i + 1} URL is required`;
+        break;
+      } else if (!isValidUrl(img)) {
+        newErrors.images = `Image ${i + 1} URL is invalid`;
+        break;
       }
     }
-    
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    } else if (formData.description.trim().length < 10) {
-      newErrors.description = 'Description must be at least 10 characters';
-    }
-    
-    if (!formData.category) {
-      newErrors.category = 'Category is required';
-    }
-    
-    if (formData.rating < 1 || formData.rating > 5) {
-      newErrors.rating = 'Rating must be between 1 and 5';
-    }
-    
-    if (!formData.sizes || formData.sizes.length === 0) {
-      newErrors.sizes = 'At least one size must be selected';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  }
+  
+  if (!formData.description.trim()) {
+    newErrors.description = 'Description is required';
+  } else if (formData.description.trim().length < 10) {
+    newErrors.description = 'Description must be at least 10 characters';
+  }
+  
+  if (!formData.category) {
+    newErrors.category = 'Category is required';
+  }
+  
+  if (formData.rating < 1 || formData.rating > 5) {
+    newErrors.rating = 'Rating must be between 1 and 5';
+  }
+  
+  // REMOVE OR COMMENT OUT THIS VALIDATION BLOCK TO MAKE SIZES OPTIONAL:
+  // if (!formData.sizes || formData.sizes.length === 0) {
+  //   newErrors.sizes = 'At least one size must be selected';
+  // }
+  
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -352,7 +353,7 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
               <option value="Bridal Bangles">Bridal Bangles</option>
               <option value="Side Bangles">Side Bangles</option>
               <option value="Hair Accessories">Hair Accessories</option>
-              <option value="Traditional">Traditional</option>
+              <option value="Semi Bridal">Semi Bridal</option>
               <option value="Return Gifts">Return Gifts</option>
             </select>
             {errors.category && (
@@ -363,7 +364,7 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
           {/* Available Sizes */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Available Sizes *
+              Available Sizes (Optional)
             </label>
             <div className="grid grid-cols-4 gap-2">
               {['2.0', '2.2', '2.4', '2.6', '2.8', '2.10', 'Children'].map(size => (
@@ -384,9 +385,6 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
                 </label>
               ))}
             </div>
-            {errors.sizes && (
-              <p className="text-red-500 text-sm mt-1">{errors.sizes}</p>
-            )}
           </div>
 
           {/* Multiple Images URLs */}
@@ -547,7 +545,7 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
 {formData.images.some(img => img && isValidUrl(img)) && (
   <div className="mt-6">
     <label className="block text-sm font-medium text-gray-700 mb-2">
-      Images Preview (Using compressed sizes for fast loading)
+      Images Preview
     </label>
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
       {formData.images.map((img, index) => (

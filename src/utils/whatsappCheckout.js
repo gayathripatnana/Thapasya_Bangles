@@ -19,7 +19,7 @@ export const createCartCheckoutMessage = (cartItems, orderSummary, customerInfo 
 
   let message = `🛒 *Hi! I want to place an ORDER* 🛒
 📅 Date: ${currentDate}
-${customerInfo ? `\n👤 My Name: ${customerInfo.name}\n📱 My Phone: ${customerInfo.phone}\n📧 My Email: ${customerInfo.email}\n` : ''}
+${customerInfo ? `\n👤 My Name: ${customerInfo.name || 'Not provided'}\n📱 My Phone: ${customerInfo.phone || 'Not provided'}\n📧 My Email: ${customerInfo.email || 'Not provided'}\n📍 My Address: ${customerInfo.address || 'Not provided'}\n` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📦 *PRODUCTS I WANT TO ORDER* (${itemCount} item${itemCount !== 1 ? 's' : ''})
@@ -27,15 +27,15 @@ ${customerInfo ? `\n👤 My Name: ${customerInfo.name}\n📱 My Phone: ${custome
 `;
 
   // Add each cart item with details
-   cartItems.forEach((item, index) => {
+  cartItems.forEach((item, index) => {
     message += `${index + 1}. *${item.name}*
    📂 Category: ${item.category}
-   📏 Size: ${item.selectedSize || 'Not specified'}
+   ${item.selectedSize ? `📏 Size: ${item.selectedSize}` : ''}
    💰 Price: ₹${item.price.toLocaleString()}
    📊 Quantity: ${item.quantity}
    💵 Subtotal: ₹${(item.price * item.quantity).toLocaleString()}
    ⭐ Rating: ${item.rating}/5
-   🔗 Product Image: ${item.image}
+   🔗 Product Image: ${item.image || 'Image not available'}
 
 `;
   });
@@ -58,7 +58,7 @@ ${customerInfo ? `\n👤 My Name: ${customerInfo.name}\n📱 My Phone: ${custome
 
 📋 *PLEASE LET ME KNOW:*
 ✅ Availability of these products
-✅ Delivery address and timeline
+✅ Delivery timeline
 ✅ Payment options (UPI/COD/Bank Transfer)
 ✅ Any additional charges
 

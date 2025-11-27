@@ -236,7 +236,7 @@ const Header = ({
         `}>
           <div className="flex flex-col h-full">
             {/* Mobile Menu Header */}
-\            <div className="flex justify-between items-center p-4 border-b border-white/20">
+           <div className="flex justify-between items-center p-4 border-b border-white/20">
               <div className="flex items-center space-x-2">
                 {/* Replace ShoppingBag with your logo in mobile menu too */}
                 <img 

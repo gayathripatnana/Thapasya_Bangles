@@ -6,6 +6,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -29,10 +30,15 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
       return;
     }
 
+    if (!formData.phone || formData.phone.length < 10) {
+      setError('Please enter a valid 10-digit phone number');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const user = await registerWithEmail(formData.name, formData.email, formData.password);
+      const user = await registerWithEmail(formData.name, formData.email, formData.phone, formData.password);
       const success = onRegister({ ...formData, uid: user.uid });
       if (!success) {
         setError('Registration failed. Please try again.');
@@ -65,6 +71,7 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
       const userData = {
         name: user.displayName,
         email: user.email,
+        phone: '',
         isGoogleAuth: true,
         uid: user.uid
       };
@@ -130,6 +137,29 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
                 placeholder="Enter your email"
                 required
                 disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          {/* Phone Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <div className="relative">
+              <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
+                placeholder="Enter 10-digit phone number"
+                required
+                disabled={isLoading}
+                pattern="[0-9]{10}"
+                maxLength={10}
               />
             </div>
           </div>
@@ -204,9 +234,9 @@ const RegisterPage = ({ onRegister, onSwitchToLogin }) => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading || !formData.name || !formData.email || !formData.password || !formData.confirmPassword}
+            disabled={isLoading || !formData.name || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword}
             className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
-              isLoading || !formData.name || !formData.email || !formData.password || !formData.confirmPassword
+              isLoading || !formData.name || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-gradient-to-r from-yellow-500 to-gray-600 text-white hover:shadow-lg transform hover:-translate-y-1'
             }`}
