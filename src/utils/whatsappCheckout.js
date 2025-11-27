@@ -35,6 +35,7 @@ ${customerInfo ? `\n👤 My Name: ${customerInfo.name}\n📱 My Phone: ${custome
    📊 Quantity: ${item.quantity}
    💵 Subtotal: ₹${(item.price * item.quantity).toLocaleString()}
    ⭐ Rating: ${item.rating}/5
+   🔗 Product Image: ${item.image}
 
 `;
   });
