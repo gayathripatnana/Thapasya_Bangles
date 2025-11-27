@@ -1,7 +1,39 @@
-// pages/ProductDetailsPage.jsx - Updated with multiple images support and size selection
+// pages/ProductDetailsPage.jsx - Updated with Google Drive URL conversion
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
+
+// Add the Google Drive URL conversion function
+const convertGoogleDriveUrl = (url) => {
+  if (typeof url !== 'string' || !url) {
+    console.error('Invalid URL provided to convertGoogleDriveUrl:', url);
+    return null;
+  }
+  
+  try {
+    let fileId = null;
+    
+    // Handle different Google Drive URL formats
+    if (url.includes('uc?export=view&id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('drive.google.com/file/d/')) {
+      fileId = url.split('/d/')[1].split('/')[0];
+    } else if (url.includes('/open?id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('/view?usp=drive_link') || url.includes('/view?usp=sharing')) {
+      fileId = url.split('/d/')[1].split('/view')[0];
+    }
+    
+    if (fileId) {
+      return `https://lh3.googleusercontent.com/d/${fileId}=s800`;
+    }
+    
+    return url;
+  } catch (e) {
+    console.error('Error converting URL:', url, e);
+    return url;
+  }
+};
 
 const ProductDetailsPage = ({ 
   product, 
@@ -24,45 +56,71 @@ const ProductDetailsPage = ({
   const [selectedSize, setSelectedSize] = useState('');
   const [showSizeChart, setShowSizeChart] = useState(false);
 
+  // Convert product images to use direct Google Drive URLs
+  const processedProduct = useMemo(() => {
+    if (!product) return null;
+
+    // Process main image and images array
+    const processedImages = (product.images && product.images.length > 0 
+      ? product.images 
+      : [product.image]
+    ).map(img => convertGoogleDriveUrl(img));
+
+    return {
+      ...product,
+      image: convertGoogleDriveUrl(product.image),
+      images: processedImages
+    };
+  }, [product]);
+
   // Load related products based on category
   useEffect(() => {
     const loadRelatedProducts = async () => {
-      if (product && product.category) {
-        const related = await getProductsByCategory(product.category);
+      if (processedProduct && processedProduct.category) {
+        const related = await getProductsByCategory(processedProduct.category);
         // Filter out current product and limit to 4
         const filteredRelated = related
-          .filter(p => p.id !== product.id)
-          .slice(0, 4);
+          .filter(p => p.id !== processedProduct.id)
+          .slice(0, 4)
+          .map(p => ({
+            ...p,
+            image: convertGoogleDriveUrl(p.image)
+          }));
         setDynamicRelatedProducts(filteredRelated);
       }
     };
 
     if (relatedProducts && relatedProducts.length > 0) {
-      setDynamicRelatedProducts(relatedProducts);
-    } else if (product) {
+      // Process related products images too
+      const processedRelated = relatedProducts.map(p => ({
+        ...p,
+        image: convertGoogleDriveUrl(p.image)
+      }));
+      setDynamicRelatedProducts(processedRelated);
+    } else if (processedProduct) {
       loadRelatedProducts();
     }
-  }, [product, relatedProducts]);
+  }, [processedProduct, relatedProducts]);
 
   // Pre-select size if product is in cart
   useEffect(() => {
-    if (product && cartItems) {
-      const cartItem = cartItems.find(item => item.id === product.id);
+    if (processedProduct && cartItems) {
+      const cartItem = cartItems.find(item => item.id === processedProduct.id);
       if (cartItem && cartItem.selectedSize) {
         setSelectedSize(cartItem.selectedSize);
       }
     }
-  }, [product, cartItems]);
+  }, [processedProduct, cartItems]);
 
   // Reactive product in cart check that updates when selectedSize changes
   const productInCart = useMemo(() => {
-    if (!cartItems || !product) return isInCart;
+    if (!cartItems || !processedProduct) return isInCart;
     return cartItems.some(item => 
-      item.id === product.id && item.selectedSize === selectedSize
+      item.id === processedProduct.id && item.selectedSize === selectedSize
     );
-  }, [cartItems, product, selectedSize, isInCart]);
+  }, [cartItems, processedProduct, selectedSize, isInCart]);
 
-  if (!product) {
+  if (!processedProduct) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4 text-center">
@@ -79,9 +137,7 @@ const ProductDetailsPage = ({
   }
 
   // Use multiple images if available, otherwise use single image
-  const productImages = product.images && product.images.length > 0 
-    ? product.images 
-    : [product.image];
+  const productImages = processedProduct.images;
 
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
@@ -92,7 +148,7 @@ const ProductDetailsPage = ({
 
   const handleAddToCart = () => {
     // Check if size is required but not selected
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+    if (processedProduct.sizes && processedProduct.sizes.length > 0 && !selectedSize) {
       alert('Please select a size before adding to cart');
       return;
     }
@@ -100,7 +156,7 @@ const ProductDetailsPage = ({
     // Always add as new item (different sizes = different items)
     for (let i = 0; i < quantity; i++) {
       onAddToCart({
-        ...product,
+        ...processedProduct,
         selectedSize: selectedSize
       });
     }
@@ -108,19 +164,19 @@ const ProductDetailsPage = ({
 
   const handleWishlistClick = () => {
     // Check if size is required but not selected
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+    if (processedProduct.sizes && processedProduct.sizes.length > 0 && !selectedSize) {
       alert('Please select a size before adding to wishlist');
       return;
     }
 
-    const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
+    const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === processedProduct.id) : isInWishlist;
     
     if (productInWishlist) {
-      onRemoveFromWishlist && onRemoveFromWishlist(product.id);
+      onRemoveFromWishlist && onRemoveFromWishlist(processedProduct.id);
     } else {
       // PASS THE SELECTED SIZE TO THE PRODUCT
       onAddToWishlist && onAddToWishlist({
-        ...product,
+        ...processedProduct,
         selectedSize: selectedSize
       });
     }
@@ -128,7 +184,7 @@ const ProductDetailsPage = ({
 
   const handleCartClick = () => {
     // Check if size is required but not selected
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+    if (processedProduct.sizes && processedProduct.sizes.length > 0 && !selectedSize) {
       alert('Please select a size before adding to cart');
       return;
     }
@@ -147,7 +203,7 @@ const ProductDetailsPage = ({
     
 Product: ${product.name}
 Category: ${product.category}
-${product.selectedSize ? `Size: ${product.selectedSize}` : ''}
+${selectedSize ? `Size: ${selectedSize}` : ''}
 Price: ₹${product.price.toLocaleString()}
 Quantity: ${quantity}
 Total: ₹${(product.price * quantity).toLocaleString()}
@@ -159,14 +215,14 @@ Please confirm availability and share payment details. Thank you!`;
   };
 
   const handleWhatsAppOrder = () => {
-    orderProductViaWhatsApp(product, quantity);
+    orderProductViaWhatsApp(processedProduct, quantity);
   };
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: product.name,
-        text: `Check out this beautiful bangle: ${product.name} - ₹${product.price.toLocaleString()}`,
+        title: processedProduct.name,
+        text: `Check out this beautiful bangle: ${processedProduct.name} - ₹${processedProduct.price.toLocaleString()}`,
         url: window.location.href,
       });
     } else {
@@ -176,18 +232,23 @@ Please confirm availability and share payment details. Thank you!`;
   };
 
   const handleRelatedProductClick = (productId) => {
-    if (onProductClick) {
-      onProductClick(productId);
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  if (onProductClick) {
+    onProductClick(productId);
+  } else {
+    // Fallback: reload the page with the new product ID in URL or other navigation method
+    console.log('Navigate to product:', productId);
+    // You might need to implement navigation logic here
+    // For example: window.location.href = `/product/${productId}`;
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
   // Check if product is in wishlist
-  const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === product.id) : isInWishlist;
+  const productInWishlist = wishlistItems ? wishlistItems.some(item => item.id === processedProduct.id) : isInWishlist;
 
-  const totalPrice = product.price * quantity;
-  const originalPrice = Math.round(product.price * 1.2);
-  const discountPercentage = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+  const totalPrice = processedProduct.price * quantity;
+  const originalPrice = Math.round(processedProduct.price * 1.2);
+  const discountPercentage = Math.round(((originalPrice - processedProduct.price) / originalPrice) * 100);
 
   const displayRelatedProducts = dynamicRelatedProducts.length > 0 ? dynamicRelatedProducts : [];
 
@@ -220,19 +281,23 @@ Please confirm availability and share payment details. Thank you!`;
             <div className="relative aspect-square bg-white rounded-xl shadow-lg overflow-hidden">
               <img
                 src={productImages[selectedImage]}
-                alt={product.name}
+                alt={processedProduct.name}
                 className="w-full h-full object-cover"
                 loading="lazy"
+                onError={(e) => {
+                  console.error('Failed to load image:', productImages[selectedImage]);
+                  e.target.src = 'https://via.placeholder.com/600x600/f3f4f6/9ca3af?text=Image+Not+Found';
+                }}
               />
               
               {/* Stock Status Badge */}
               <div className="absolute top-4 left-4">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${
-                  product.inStock !== false 
+                  processedProduct.inStock !== false 
                     ? 'bg-green-500 text-white' 
                     : 'bg-red-500 text-white'
                 }`}>
-                  {product.inStock !== false ? (
+                  {processedProduct.inStock !== false ? (
                     <>
                       <CheckCircle className="w-4 h-4" />
                       <span>In Stock</span>
@@ -285,9 +350,13 @@ Please confirm availability and share payment details. Thank you!`;
                   >
                     <img
                       src={image}
-                      alt={`${product.name} ${index + 1}`}
+                      alt={`${processedProduct.name} ${index + 1}`}
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      onError={(e) => {
+                        console.error('Failed to load thumbnail:', image);
+                        e.target.src = 'https://via.placeholder.com/150x150/f3f4f6/9ca3af?text=Image+Error';
+                      }}
                     />
                   </button>
                 ))}
@@ -299,8 +368,8 @@ Please confirm availability and share payment details. Thank you!`;
           <div className="space-y-6">
             {/* Basic Info */}
             <div>
-              <div className="text-sm text-gray-500 mb-2">{product.category}</div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">{product.name}</h1>
+              <div className="text-sm text-gray-500 mb-2">{processedProduct.category}</div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">{processedProduct.name}</h1>
               
               {/* Rating */}
               <div className="flex items-center space-x-3 mb-4">
@@ -309,18 +378,18 @@ Please confirm availability and share payment details. Thank you!`;
                     <Star
                       key={i}
                       className={`w-5 h-5 ${
-                        i < Math.floor(product.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                        i < Math.floor(processedProduct.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-gray-600">({product.rating}/5)</span>
+                <span className="text-gray-600">({processedProduct.rating}/5)</span>
                 <span className="text-sm text-gray-500">• 125 reviews</span>
               </div>
 
               {/* Price */}
               <div className="flex items-center space-x-3 mb-6">
-                <span className="text-3xl font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
+                <span className="text-3xl font-bold text-yellow-600">₹{processedProduct.price.toLocaleString()}</span>
                 <span className="text-xl text-gray-500 line-through">₹{originalPrice.toLocaleString()}</span>
                 <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
                   {discountPercentage}% OFF
@@ -358,7 +427,7 @@ Please confirm availability and share payment details. Thank you!`;
             </div>
 
             {/* Size Selection */}
-            {product.sizes && product.sizes.length > 0 && (
+            {processedProduct.sizes && processedProduct.sizes.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Select Size *
@@ -368,7 +437,7 @@ Please confirm availability and share payment details. Thank you!`;
                   Note: Different sizes will be added as separate items in your cart
                 </p>
                 <div className="grid grid-cols-4 gap-2 mb-4">
-                  {product.sizes.map(size => (
+                  {processedProduct.sizes.map(size => (
                     <button
                       key={size}
                       type="button"
@@ -398,9 +467,9 @@ Please confirm availability and share payment details. Thank you!`;
                     </span>
                   </button>
                   
-                  {showSizeChart && product.sizeChart && (
+                  {showSizeChart && processedProduct.sizeChart && (
                     <div className="mt-3 text-sm text-gray-600 space-y-2">
-                      {Object.entries(product.sizeChart).map(([size, description]) => (
+                      {Object.entries(processedProduct.sizeChart).map(([size, description]) => (
                         <div key={size} className="flex justify-between items-start py-1 border-b border-gray-200 last:border-b-0">
                           <span className="font-medium text-yellow-600 min-w-[60px]">{size}:</span>
                           <span className="text-right flex-1 ml-4">{description}</span>
@@ -414,7 +483,7 @@ Please confirm availability and share payment details. Thank you!`;
 
             {/* Action Buttons */}
             <div className="space-y-3">
-              {product.inStock !== false ? (
+              {processedProduct.inStock !== false ? (
                 <>
                   {/* WhatsApp Order Button */}
                   <button
@@ -480,7 +549,7 @@ Please confirm availability and share payment details. Thank you!`;
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Description</h3>
               <div className={`text-gray-600 leading-relaxed ${showFullDescription ? '' : 'line-clamp-3'}`}>
-                {product.description || `Exquisite handcrafted ${product.name.toLowerCase()} from our ${product.category.toLowerCase()} collection. Each piece is carefully crafted using traditional techniques and finest materials, ensuring premium quality and timeless elegance. Perfect for special occasions or daily wear, this bangle combines classic design with modern appeal.`}
+                {processedProduct.description || `Exquisite handcrafted ${processedProduct.name.toLowerCase()} from our ${processedProduct.category.toLowerCase()} collection. Each piece is carefully crafted using traditional techniques and finest materials, ensuring premium quality and timeless elegance. Perfect for special occasions or daily wear, this bangle combines classic design with modern appeal.`}
               </div>
               <button
                 onClick={() => setShowFullDescription(!showFullDescription)}
@@ -510,10 +579,10 @@ Please confirm availability and share payment details. Thank you!`;
                   <span className="text-gray-500">Images:</span>
                   <span className="ml-2 font-medium">{productImages.length}</span>
                 </div>
-                {product.sizes && product.sizes.length > 0 && (
+                {processedProduct.sizes && processedProduct.sizes.length > 0 && (
                   <div className="col-span-2">
                     <span className="text-gray-500">Available Sizes:</span>
-                    <span className="ml-2 font-medium">{product.sizes.join(', ')}</span>
+                    <span className="ml-2 font-medium">{processedProduct.sizes.join(', ')}</span>
                   </div>
                 )}
               </div>
@@ -538,6 +607,10 @@ Please confirm availability and share payment details. Thank you!`;
                       alt={relatedProduct.name}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                       loading="lazy"
+                      onError={(e) => {
+                        console.error('Failed to load related product image:', relatedProduct.image);
+                        e.target.src = 'https://via.placeholder.com/300x300/f3f4f6/9ca3af?text=Image+Error';
+                      }}
                     />
                   </div>
                   <div className="p-3 sm:p-4">

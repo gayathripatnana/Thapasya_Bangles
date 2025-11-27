@@ -28,6 +28,69 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+const getGoogleDriveImageUrl = (url, size = 'preview') => {
+  if (typeof url !== 'string' || !url) {
+    return null;
+  }
+  
+  try {
+    let fileId = null;
+    
+    // Handle all Google Drive URL formats
+    if (url.includes('uc?export=view&id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('drive.google.com/file/d/')) {
+      fileId = url.split('/d/')[1].split('/')[0];
+    } else if (url.includes('/open?id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('/view?usp=drive_link') || url.includes('/view?usp=sharing')) {
+      fileId = url.split('/d/')[1].split('/view')[0];
+    }
+    
+    if (fileId) {
+      // Much smaller sizes for faster loading
+      const sizes = {
+        'tiny': `https://lh3.googleusercontent.com/d/${fileId}=w100-h100`, // 100x100 - ultra fast
+        'preview': `https://lh3.googleusercontent.com/d/${fileId}=w200-h200`, // 200x200 - for form preview
+        'thumbnail': `https://lh3.googleusercontent.com/d/${fileId}=w300-h300`, // 300x300 - for listings
+        'medium': `https://lh3.googleusercontent.com/d/${fileId}=w500-h500`, // 500x500 - for product pages
+        'large': `https://lh3.googleusercontent.com/d/${fileId}=w800` // 800px width - maximum needed
+      };
+      
+      return sizes[size] || sizes.preview;
+    }
+    
+    return url;
+  } catch (e) {
+    console.error('Error converting Google Drive URL:', e);
+    return url;
+  }
+};
+
+  // Check if URL is a valid Google Drive URL
+  const isValidGoogleDriveUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    
+    const drivePatterns = [
+      /drive\.google\.com\/file\/d\/([^\/]+)/,
+      /uc\?export=view&id=([^&]+)/,
+      /\/open\?id=([^&]+)/,
+      /\/view\?usp=(drive_link|sharing)/
+    ];
+    
+    return drivePatterns.some(pattern => pattern.test(url));
+  };
+
+  // Check if URL is valid
+  const isValidUrl = (string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (product) {
       setFormData({
@@ -103,23 +166,6 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const isValidUrl = (string) => {
-    try {
-      new URL(string);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  };
-
-  const convertGoogleDriveUrl = (url) => {
-    if (url.includes('drive.google.com/file/d/')) {
-      const fileId = url.split('/d/')[1].split('/')[0];
-      return `https://lh3.googleusercontent.com/d/${fileId}=s1000`;
-    }
-    return url;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -157,7 +203,8 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             '2.8': 'Large - Fits wrist circumference 17-18cm',
             '2.10': 'Extra Large - Fits wrist circumference 18-19cm',
             'Children': 'Kids Size - Fits wrist circumference 10-12cm'
-          }
+          },
+          isFeatured: false
         });
       }
       
@@ -189,6 +236,31 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     handleInputChange('images', newImages);
   };
 
+  // Function to handle image loading with fallbacks
+  const handleImageError = (e, img, index) => {
+    console.log(`Image ${index + 1} failed to load, trying fallback sizes`);
+    
+    // Try medium size
+    e.target.src = getGoogleDriveImageUrl(img, 'medium');
+    
+    e.target.onerror = () => {
+      // Try large size
+      e.target.src = getGoogleDriveImageUrl(img, 'large');
+      
+      e.target.onerror = () => {
+        // Try original
+        e.target.src = getGoogleDriveImageUrl(img, 'original');
+        
+        e.target.onerror = () => {
+          // Final fallback to placeholder
+          e.target.src = 'https://via.placeholder.com/200x200/f3f4f6/9ca3af?text=Image+Not+Found';
+          e.target.alt = 'Failed to load image';
+          e.target.className = 'w-full h-full object-contain p-2';
+        };
+      };
+    };
+  };
+
   return (
     <div className="bg-white rounded-lg">
       {/* Header */}
@@ -204,6 +276,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
         <button
           onClick={onCancel}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          disabled={isSubmitting}
         >
           <X className="w-6 h-6 text-gray-500" />
         </button>
@@ -277,10 +350,10 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             >
               <option value="">Select Category</option>
               <option value="Bridal Bangles">Bridal Bangles</option>
-              <option value="Glass Bangles">Glass Bangles</option>
-              <option value="Give Aways">Give Aways</option>
-              <option value="Traditional">Traditional</option>
+              <option value="Side Bangles">Side Bangles</option>
               <option value="Hair Accessories">Hair Accessories</option>
+              <option value="Traditional">Traditional</option>
+              <option value="Return Gifts">Return Gifts</option>
             </select>
             {errors.category && (
               <p className="text-red-500 text-sm mt-1">{errors.category}</p>
@@ -366,7 +439,15 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
               <p className="text-red-500 text-sm mt-1">{errors.images}</p>
             )}
             <p className="text-xs text-gray-500 mt-2">
-              Paste Google Drive links (e.g., https://drive.google.com/file/d/ID/view?usp=drive_link)
+              Paste Google Drive links in any of these formats:
+              <br />
+              • https://drive.google.com/file/d/ID/view?usp=drive_link
+              <br />
+              • https://drive.google.com/file/d/ID/view?usp=sharing
+              <br />
+              • https://drive.google.com/file/d/ID/view
+              <br />
+              Make sure files have "Anyone with the link can view" permission
             </p>
           </div>
           
@@ -462,49 +543,57 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
           </div>
         </div>
         
-        {/* Multiple Images Preview */}
-        {formData.images.some(img => img && isValidUrl(img)) && (
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Images Preview
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {formData.images.map((img, index) => (
-                img && isValidUrl(img) && (
-                  <div key={index} className="border-2 border-dashed border-gray-300 rounded-lg p-2">
-                    <img
-                      src={convertGoogleDriveUrl(img)}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-24 object-cover rounded-lg"
-                      onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/150?text=Invalid+URL';
-                        e.target.alt = 'Invalid Image URL';
-                      }}
-                    />
-                    <p className="text-xs text-gray-500 text-center mt-1">Image {index + 1}</p>
-                  </div>
-                )
-              ))}
+{/* Multiple Images Preview - Using Tiny Images for Speed */}
+{formData.images.some(img => img && isValidUrl(img)) && (
+  <div className="mt-6">
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Images Preview (Using compressed sizes for fast loading)
+    </label>
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+      {formData.images.map((img, index) => (
+        img && isValidUrl(img) && (
+          <div key={index} className="border border-gray-200 rounded-lg p-1 bg-gray-50">
+            <div className="relative w-full h-16 bg-white rounded overflow-hidden">
+              <img
+                src={getGoogleDriveImageUrl(img, 'tiny')} // Using tiny 100x100 images
+                alt={`Preview ${index + 1}`}
+                className="w-full h-full object-cover"
+                loading="lazy" // Lazy loading
+                onError={(e) => {
+                  // Fallback to slightly larger if tiny fails
+                  e.target.src = getGoogleDriveImageUrl(img, 'preview');
+                }}
+              />
+              <div className="absolute bottom-0 right-0 bg-black bg-opacity-70 text-white text-xs px-1 rounded-tl">
+                {index + 1}
+              </div>
             </div>
           </div>
-        )}
+        )
+      ))}
+    </div>
+    <p className="text-xs text-gray-500 mt-2">
+      Using compressed 100x100 images for fast preview. Full quality loads on product page.
+    </p>
+  </div>
+)}
 
         {/* Featured Product Toggle */}
-<div className="mt-6">
-  <label className="flex items-center space-x-3">
-    <input
-      type="checkbox"
-      checked={formData.isFeatured}
-      onChange={(e) => handleInputChange('isFeatured', e.target.checked)}
-      className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
-      disabled={isSubmitting}
-    />
-    <span className="text-sm font-medium text-gray-700">Set as Featured Product</span>
-  </label>
-  <p className="text-xs text-gray-500 mt-1">
-    Featured products will be displayed on the homepage
-  </p>
-</div>
+        <div className="mt-6">
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={formData.isFeatured}
+              onChange={(e) => handleInputChange('isFeatured', e.target.checked)}
+              className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+              disabled={isSubmitting}
+            />
+            <span className="text-sm font-medium text-gray-700">Set as Featured Product</span>
+          </label>
+          <p className="text-xs text-gray-500 mt-1">
+            Featured products will be displayed on the homepage
+          </p>
+        </div>
         
         {/* Form Actions */}
         <div className="flex justify-end space-x-4 mt-8 pt-6 border-t">

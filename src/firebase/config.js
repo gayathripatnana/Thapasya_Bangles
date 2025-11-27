@@ -3,15 +3,17 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Firebase configuration
+// Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBWg3NDKNeAvKfMX66UoNH0V5Xnyc5IdHs",
-  authDomain: "thapasya-bangles.firebaseapp.com",
-  projectId: "thapasya-bangles",
-  storageBucket: "thapasya-bangles.firebasestorage.app",
-  messagingSenderId: "560825753786",
-  appId: "1:560825753786:web:7b96adfb567bd1aeb76283",
-  measurementId: "G-C9HL618GPW"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
+
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

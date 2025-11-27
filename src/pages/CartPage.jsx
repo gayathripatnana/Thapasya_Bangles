@@ -1,8 +1,41 @@
-// pages/CartPage.jsx - Updated with Fixed Sticky Order Summary
-import React, { useState, useEffect } from 'react';
+// pages/CartPage.jsx - Optimized for Performance and Responsiveness
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Tag, Truck, Shield, RotateCcw, Star, Phone, User, Mail, MapPin, Ruler } from 'lucide-react';
 import { proceedToWhatsAppCheckout } from '../utils/whatsappCheckout';
 import { getProductsByCategory } from '../utils/helpers';
+
+// Lazy load heavy components
+// Google Drive URL conversion function
+const convertGoogleDriveUrl = (url) => {
+  if (typeof url !== 'string' || !url) {
+    console.error('Invalid URL provided to convertGoogleDriveUrl:', url);
+    return null;
+  }
+  
+  try {
+    let fileId = null;
+    
+    // Handle different Google Drive URL formats
+    if (url.includes('uc?export=view&id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('drive.google.com/file/d/')) {
+      fileId = url.split('/d/')[1].split('/')[0];
+    } else if (url.includes('/open?id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('/view?usp=drive_link') || url.includes('/view?usp=sharing')) {
+      fileId = url.split('/d/')[1].split('/view')[0];
+    }
+    
+    if (fileId) {
+      return `https://lh3.googleusercontent.com/d/${fileId}=s300`;
+    }
+    
+    return url;
+  } catch (e) {
+    console.error('Error converting URL:', url, e);
+    return url;
+  }
+};
 
 const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize }) => {
   const [promoCode, setPromoCode] = useState('');
@@ -19,7 +52,32 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
   const [showSizeModal, setShowSizeModal] = useState(null);
   const [loadingRelated, setLoadingRelated] = useState(false);
 
-  // Load related products based on cart items
+  // Memoized calculations for performance
+  const { subtotal, deliveryCharges, total } = useMemo(() => {
+    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const deliveryCharges = subtotal > 1500 ? 0 : 99;
+    const total = subtotal - discount + deliveryCharges;
+    
+    return { subtotal, deliveryCharges, total };
+  }, [cartItems, discount]);
+
+  // Process cart items with optimized images
+  const processedCartItems = useMemo(() => {
+    return cartItems.map(item => ({
+      ...item,
+      image: convertGoogleDriveUrl(item.image)
+    }));
+  }, [cartItems]);
+
+  // Promo codes
+  const promoCodes = useMemo(() => ({
+    'SAVE10': { type: 'percentage', value: 0.1, description: '10% off' },
+    'WELCOME20': { type: 'percentage', value: 0.2, description: '20% off' },
+    'FIRST50': { type: 'fixed', value: 50, description: '₹50 off' },
+    'FREE100': { type: 'fixed', value: 100, description: '₹100 off' }
+  }), []);
+
+  // Load related products with optimization
   useEffect(() => {
     const loadRelatedProducts = async () => {
       if (cartItems.length > 0) {
@@ -38,10 +96,14 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
           
           if (mostCommonCategory) {
             const related = await getProductsByCategory(mostCommonCategory);
-            // Filter out products already in cart and limit to 8 for better variety
+            // Filter out products already in cart and limit to 4 for better performance
             const filteredRelated = related
               .filter(p => !cartItems.some(item => item.id === p.id))
-              .slice(0, 8);
+              .slice(0, 4)
+              .map(product => ({
+                ...product,
+                image: convertGoogleDriveUrl(product.image)
+              }));
             setRelatedProducts(filteredRelated);
           }
         } catch (error) {
@@ -57,18 +119,8 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     loadRelatedProducts();
   }, [cartItems]);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const deliveryCharges = subtotal > 1500 ? 0 : 99;
-  const total = subtotal - discount + deliveryCharges;
-
-  const promoCodes = {
-    'SAVE10': { type: 'percentage', value: 0.1, description: '10% off' },
-    'WELCOME20': { type: 'percentage', value: 0.2, description: '20% off' },
-    'FIRST50': { type: 'fixed', value: 50, description: '₹50 off' },
-    'FREE100': { type: 'fixed', value: 100, description: '₹100 off' }
-  };
-
-  const handleApplyPromo = () => {
+  // Optimized event handlers
+  const handleApplyPromo = useCallback(() => {
     const upperPromoCode = promoCode.toUpperCase();
     if (promoCodes[upperPromoCode]) {
       const promo = promoCodes[upperPromoCode];
@@ -82,21 +134,21 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     } else {
       alert('Invalid promo code');
     }
-  };
+  }, [promoCode, promoCodes, subtotal]);
 
-  const handleRemovePromo = () => {
+  const handleRemovePromo = useCallback(() => {
     setDiscount(0);
     setAppliedPromoCode('');
-  };
+  }, []);
 
-  const handleCustomerInfoChange = (field, value) => {
+  const handleCustomerInfoChange = useCallback((field, value) => {
     setCustomerInfo(prev => ({
       ...prev,
       [field]: value
     }));
-  };
+  }, []);
 
-  const handleCheckout = () => {
+  const handleCheckout = useCallback(() => {
     const orderSummary = {
       subtotal,
       discount,
@@ -113,9 +165,9 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     // Proceed with WhatsApp checkout
     const finalCustomerInfo = customerInfo.name ? customerInfo : null;
     proceedToWhatsAppCheckout(cartItems, orderSummary, finalCustomerInfo);
-  };
+  }, [cartItems, customerInfo, deliveryCharges, discount, showCustomerForm, subtotal, total]);
 
-  const handleQuickCheckout = () => {
+  const handleQuickCheckout = useCallback(() => {
     // Direct checkout without customer form
     const orderSummary = {
       subtotal,
@@ -125,27 +177,45 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     };
 
     proceedToWhatsAppCheckout(cartItems, orderSummary, null);
-  };
+  }, [cartItems, deliveryCharges, discount, subtotal, total]);
 
-const handleRelatedProductClick = (productId) => {
-  if (onProductClick) {
-    onProductClick(productId);
-  }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+  const handleRelatedProductClick = useCallback((productId) => {
+    if (onProductClick) {
+      onProductClick(productId);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [onProductClick]);
 
-  const handleAddRelatedToCart = (product) => {
+  const handleAddRelatedToCart = useCallback((product) => {
     if (onAddToCart) {
       onAddToCart(product);
     }
-  };
+  }, [onAddToCart]);
 
-  const handleSizeChange = (productId, newSize) => {
+  const handleSizeChange = useCallback((productId, newSize) => {
     if (onUpdateCartSize) {
       onUpdateCartSize(productId, newSize);
     }
     setShowSizeModal(null);
-  };
+  }, [onUpdateCartSize]);
+
+  // Loading skeleton for cart items
+  const CartItemSkeleton = () => (
+    <div className="p-4 sm:p-6 border-b border-gray-200 animate-pulse">
+      <div className="flex items-start space-x-4">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded-lg"></div>
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-4"></div>
+          <div className="h-8 bg-gray-200 rounded w-20"></div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (cartItems.length === 0) {
     return (
@@ -199,10 +269,10 @@ const handleRelatedProductClick = (productId) => {
                 </h2>
               </div>
               <div className="divide-y divide-gray-200">
-                {cartItems.map((item) => (
+                {processedCartItems.map((item) => (
                   <div 
                     key={`${item.id}-${item.selectedSize}`} 
-                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors" // Remove cursor-pointer
+                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-start space-x-3 sm:space-x-4">
                       <div 
@@ -214,6 +284,10 @@ const handleRelatedProductClick = (productId) => {
                           alt={item.name}
                           className="w-full h-full object-cover rounded-lg"
                           loading="lazy"
+                          onError={(e) => {
+                            console.error('Failed to load cart item image:', item.image);
+                            e.target.src = 'https://via.placeholder.com/100x100/f3f4f6/9ca3af?text=Image+Error';
+                          }}
                         />
                       </div>
                       
@@ -303,105 +377,93 @@ const handleRelatedProductClick = (productId) => {
 
             {/* Enhanced Recommended Products Section */}
             {relatedProducts.length > 0 && (
-              <div className="mt-8 bg-white rounded-lg shadow-md p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-6">
+              <div className="mt-6 sm:mt-8 bg-white rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800">Recommended for You</h3>
-                    <p className="text-gray-600 text-sm mt-1">Products you might like based on your cart</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800">Recommended for You</h3>
+                    <p className="text-gray-600 text-xs sm:text-sm mt-1">Products you might like based on your cart</p>
                   </div>
-                  <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-500">
+                  <div className="hidden sm:flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
                     <span>Curated just for you</span>
                   </div>
                 </div>
                 
                 {loadingRelated ? (
-                  <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
-                    <span className="ml-3 text-gray-600">Loading recommendations...</span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6">
-                    {relatedProducts.map((product) => (
-                      <div
-  key={product.id}
-  className="bg-white border border-gray-200 rounded-lg hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group"
->
-                        <div 
-  className="relative aspect-square overflow-hidden rounded-t-lg cursor-pointer"
-  onClick={() => handleRelatedProductClick(product.id)}
->
-                          <img
-                            src={product.images && product.images.length > 0 ? product.images[0] : product.image}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            loading="lazy"
-                          />
-                          {/* Quick Add Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddRelatedToCart(product);
-                            }}
-                            className="absolute bottom-2 right-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0"
-                            aria-label="Add to cart"
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                          </button>
-                          
-                          {/* Rating Badge */}
-                          <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-                            <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                            <span>{product.rating}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="p-3 sm:p-4">
-                          <h4 className="font-semibold text-gray-800 text-sm sm:text-base mb-2 line-clamp-2 group-hover:text-yellow-600 transition-colors">
-                            {product.name}
-                          </h4>
-                          
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-lg font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
-                              <span className="text-gray-500 text-sm line-through hidden sm:block">
-                                ₹{(product.price * 1.2).toLocaleString()}
-                              </span>
-                            </div>
-                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full hidden sm:inline-block">
-                              {Math.round(20)}% off
-                            </span>
-                          </div>
-                          
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddRelatedToCart(product);
-                            }}
-                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2 sm:hidden group-hover:flex"
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                            <span>Add to Cart</span>
-                          </button>
-                          
-                          <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                            <span className="truncate">{product.category}</span>
-                            <span className="flex items-center space-x-1">
-                              <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                              <span>{product.rating}</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+  <div className="flex justify-center items-center py-8 sm:py-12">
+    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-yellow-500"></div>
+    <span className="ml-3 text-gray-600 text-sm">Loading recommendations...</span>
+  </div>
+) : (
+  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+    {relatedProducts.map((product) => (
+      <div
+        key={product.id}
+        className="bg-white border border-gray-200 rounded-lg hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group"
+      >
+        <div 
+          className="relative aspect-square overflow-hidden rounded-t-lg cursor-pointer"
+          onClick={() => handleRelatedProductClick(product.id)}
+        >
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            onError={(e) => {
+              console.error('Failed to load related product image:', product.image);
+              e.target.src = 'https://via.placeholder.com/300x300/f3f4f6/9ca3af?text=Image+Error';
+            }}
+          />
+          {/* Quick Add Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAddRelatedToCart(product);
+            }}
+            className="absolute bottom-2 right-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0"
+            aria-label="Add to cart"
+          >
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+          </button>
+          
+          {/* Rating Badge */}
+          <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
+            <Star className="w-3 h-3 text-yellow-400 fill-current" />
+            <span>{product.rating}</span>
+          </div>
+        </div>
+        
+        <div className="p-3">
+          <h4 className="font-semibold text-gray-800 text-sm mb-2 line-clamp-2 group-hover:text-yellow-600 transition-colors">
+            {product.name}
+          </h4>
+          
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-base font-bold text-yellow-600">₹{product.price.toLocaleString()}</span>
+            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full hidden sm:inline-block">
+              {Math.round(20)}% off
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span className="truncate">{product.category}</span>
+            <span className="flex items-center space-x-1">
+              <Star className="w-3 h-3 text-yellow-400 fill-current" />
+              <span>{product.rating}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
               </div>
             )}
 
             {/* Order Notes */}
-            <div className="mt-6 bg-white rounded-lg shadow-md p-4 sm:p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Order Notes (Optional)</h3>
+            <div className="mt-4 sm:mt-6 bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Order Notes (Optional)</h3>
               <textarea
                 placeholder="Any special instructions for your order..."
                 rows="3"
@@ -415,7 +477,7 @@ const handleRelatedProductClick = (productId) => {
 
           {/* Order Summary - Takes 1/3 on desktop, fixed positioning */}
           <div className="lg:w-1/3 lg:max-w-[33.333%]">
-            <div className="bg-white rounded-lg shadow-md sticky top-4 lg:fixed lg:right-8 lg:w-96 lg:top-4 z-10 max-h-[85vh] overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-md sticky top-4 lg:top-8 z-10 max-h-[85vh] overflow-y-auto">
               <div className="p-4 sm:p-6 border-b border-gray-200">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-800">Order Summary</h3>
               </div>
@@ -450,7 +512,7 @@ const handleRelatedProductClick = (productId) => {
                         <button
                           key={code}
                           onClick={() => setPromoCode(code)}
-                          className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors"
+                          className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors truncate"
                         >
                           {code}
                         </button>
@@ -463,7 +525,7 @@ const handleRelatedProductClick = (productId) => {
                       <div className="flex items-center space-x-2">
                         <Tag className="w-4 h-4 text-yellow-600" />
                         <span className="text-sm text-yellow-700">
-                          {appliedPromoCode} applied ({promoCodes[appliedPromoCode]?.description})
+                          {appliedPromoCode} applied
                         </span>
                       </div>
                       <button
@@ -478,19 +540,19 @@ const handleRelatedProductClick = (productId) => {
 
                 {/* Price Breakdown */}
                 <div className="space-y-3 pt-4 border-t border-gray-200">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-sm sm:text-base">
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium">₹{subtotal.toLocaleString()}</span>
                   </div>
                   
                   {discount > 0 && (
-                    <div className="flex justify-between text-yellow-600">
+                    <div className="flex justify-between text-yellow-600 text-sm sm:text-base">
                       <span>Discount</span>
                       <span>-₹{discount.toLocaleString()}</span>
                     </div>
                   )}
                   
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-sm sm:text-base">
                     <span className="text-gray-600">Delivery Charges</span>
                     <span className={`font-medium ${deliveryCharges === 0 ? 'text-yellow-600' : ''}`}>
                       {deliveryCharges === 0 ? 'FREE' : `₹${deliveryCharges}`}
@@ -504,12 +566,12 @@ const handleRelatedProductClick = (productId) => {
                 </div>
 
                 {/* Delivery Info */}
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                   <div className="flex items-center space-x-2 text-gray-700">
-                    <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <Truck className="w-4 h-4" />
                     <span className="font-medium text-sm">Delivery Information</span>
                   </div>
-                  <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                  <p className="text-xs text-gray-600 mt-1">
                     {deliveryCharges === 0 
                       ? 'Free delivery on orders above ₹1,500' 
                       : `Add ₹${(1500 - subtotal).toLocaleString()} more for free delivery`
@@ -519,8 +581,8 @@ const handleRelatedProductClick = (productId) => {
 
                 {/* Customer Information Form */}
                 {showCustomerForm && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-800 mb-3 flex items-center">
+                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-800 mb-3 flex items-center text-sm">
                       <User className="w-4 h-4 mr-2" />
                       Customer Information (Optional)
                     </h4>
@@ -562,7 +624,7 @@ const handleRelatedProductClick = (productId) => {
                   {/* Main WhatsApp Checkout Button */}
                   <button
                     onClick={handleCheckout}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 text-sm sm:text-base"
                   >
                     <Phone className="w-5 h-5" />
                     <span>{showCustomerForm ? 'Complete Order on WhatsApp' : 'Checkout via WhatsApp'}</span>
@@ -595,30 +657,27 @@ const handleRelatedProductClick = (productId) => {
                 <div className="pt-4 border-t border-gray-200">
                   <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 text-center">
                     <div>
-                      <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
-                        <Shield className="w-4 h-4 text-yellow-600" />
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                        <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />
                       </div>
-                      <span>Secure Payment</span>
+                      <span className="text-xs">Secure</span>
                     </div>
                     <div>
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-1">
-                        <RotateCcw className="w-4 h-4 text-gray-600" />
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                        <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600" />
                       </div>
-                      <span>Easy Returns</span>
+                      <span className="text-xs">Returns</span>
                     </div>
                     <div>
-                      <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
-                        <Star className="w-4 h-4 text-yellow-600" />
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                        <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />
                       </div>
-                      <span>Quality Assured</span>
+                      <span className="text-xs">Quality</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            
-            {/* Spacer for fixed positioning on desktop */}
-            <div className="hidden lg:block" style={{ height: 'calc(85vh + 2rem)' }}></div>
           </div>
         </div>
       </div>
@@ -627,18 +686,18 @@ const handleRelatedProductClick = (productId) => {
       {showSizeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div 
-            className="bg-white rounded-lg p-6 max-w-sm w-full"
+            className="bg-white rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Change Size</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Change Size</h3>
             <p className="text-gray-600 text-sm mb-4">Select a new size for this product</p>
             
-            <div className="grid grid-cols-3 gap-2 mb-6">
+            <div className="grid grid-cols-3 gap-2 mb-4">
               {cartItems.find(item => item.id === showSizeModal)?.sizes?.map(size => (
                 <button
                   key={size}
                   onClick={() => handleSizeChange(showSizeModal, size)}
-                  className={`py-2 px-3 rounded border transition-colors ${
+                  className={`py-2 px-3 rounded border transition-colors text-sm ${
                     cartItems.find(item => item.id === showSizeModal)?.selectedSize === size
                       ? 'bg-yellow-500 text-white border-yellow-500'
                       : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
@@ -651,7 +710,7 @@ const handleRelatedProductClick = (productId) => {
             
             <button
               onClick={() => setShowSizeModal(null)}
-              className="w-full mt-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+              className="w-full py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors text-sm"
             >
               Cancel
             </button>
@@ -662,4 +721,4 @@ const handleRelatedProductClick = (productId) => {
   );
 };
 
-export default CartPage;
+export default React.memo(CartPage);

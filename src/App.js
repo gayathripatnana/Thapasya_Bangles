@@ -42,6 +42,14 @@ import './App.css';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
+
+// Create a wrapper function to handle view changes with optional parameters
+const handleViewChange = (view, params = {}) => {
+  if (params.category) {
+    setSelectedCategory(params.category);
+  }
+  setCurrentView(view);
+};
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -51,6 +59,7 @@ function App() {
   const [cartItems, setCartItems] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   // Check for existing session on component mount
   useEffect(() => {
@@ -198,10 +207,11 @@ function App() {
     setCurrentView('login');
   };
 
-  const handleProductClick = (productId) => {
-    setSelectedProductId(productId);
-    setCurrentView('product-details');
-  };
+const handleProductClick = (productId) => {
+  console.log('Navigating to product:', productId);
+  setSelectedProductId(productId);
+  setCurrentView('product-details');
+};
 
   const handleBackToProducts = () => {
     setSelectedProductId(null);
@@ -376,18 +386,23 @@ const handleAddToWishlist = async (product) => {
   }
 };
 
-  const handleRemoveFromWishlist = async (productId) => {
-    if (!isLoggedIn) return;
-    
-    try {
-      await removeFromWishlist(user.uid, productId);
-      // Update local state
-      setWishlistItems(prevItems => prevItems.filter(item => item.id !== productId));
-    } catch (error) {
-      console.error('Error removing from wishlist:', error);
-      alert('Error removing product from wishlist');
-    }
-  };
+const handleRemoveFromWishlist = async (productId, selectedSize = null) => {
+  if (!isLoggedIn) return;
+  
+  try {
+    await removeFromWishlist(user.uid, productId);
+    // Update local state - FIX: Remove based on both ID and size
+    setWishlistItems(prevItems => 
+      prevItems.filter(item => 
+        !(item.id === productId && 
+          (selectedSize ? item.selectedSize === selectedSize : true))
+      )
+    );
+  } catch (error) {
+    console.error('Error removing from wishlist:', error);
+    alert('Error removing product from wishlist');
+  }
+};
 
   const handleClearWishlist = async () => {
     if (!isLoggedIn) return;
@@ -421,9 +436,10 @@ const handleAddToWishlist = async (product) => {
     switch (currentView) {
       case 'home':
         return <HomePage 
-          setCurrentView={setCurrentView} 
+        setCurrentView={handleViewChange}
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
+          onRemoveFromWishlist={handleRemoveFromWishlist}
           onAddToCart={handleAddToCart}
           wishlistItems={wishlistItems}
           cartItems={cartItems}
@@ -437,7 +453,8 @@ const handleAddToWishlist = async (product) => {
           onAddToCart={handleAddToCart}
           wishlistItems={wishlistItems}
           cartItems={cartItems}
-          setCurrentView={setCurrentView}
+          setCurrentView={handleViewChange}  // Changed from setCurrentView
+          initialCategory={selectedCategory}  // Added this
         />;
       case 'product-details':
         const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -451,6 +468,7 @@ const handleAddToWishlist = async (product) => {
           wishlistItems={wishlistItems}
           cartItems={cartItems}
           navigateToCart={() => setCurrentView('cart')}
+          onProductClick={handleProductClick}
         />;
       case 'login':
         return <LoginPage 

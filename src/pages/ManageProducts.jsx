@@ -1,9 +1,11 @@
 // pages/ManageProducts.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Plus, Search, Filter, Menu, X, Package, AlertTriangle, CheckCircle } from 'lucide-react';
 import AdminSidebar from '../components/admin/AdminSidebar';
-import ProductCard from '../components/product/ProductCard';
-import ProductForm from '../components/product/ProductForm';
+
+// Lazy load heavy components
+const ProductCard = lazy(() => import('../components/product/ProductCard'));
+const ProductForm = lazy(() => import('../components/product/ProductForm'));
 
 const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView }) => {
   const [showForm, setShowForm] = useState(false);
@@ -17,58 +19,130 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
   // Static categories
   const categoryOptions = ['All', 'Bridal Bangles', 'Glass Bangles', 'Give Aways', 'Traditional', 'Hair Accessories'];
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-    const matchesStock = () => {
-      switch (stockFilter) {
-        case 'In Stock':
-          return product.inStock !== false;
-        case 'Out of Stock':
-          return product.inStock === false;
-        default:
-          return true;
-      }
+  // Memoized filtered products for performance
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesStock = () => {
+        switch (stockFilter) {
+          case 'In Stock':
+            return product.inStock !== false;
+          case 'Out of Stock':
+            return product.inStock === false;
+          default:
+            return true;
+        }
+      };
+      
+      return matchesSearch && matchesCategory && matchesStock();
+    });
+  }, [products, searchTerm, selectedCategory, stockFilter]);
+
+  // Memoized statistics
+  const statistics = useMemo(() => {
+    const inStockCount = products.filter(p => p.inStock !== false).length;
+    const outOfStockCount = products.length - inStockCount;
+    const filteredInStockCount = filteredProducts.filter(p => p.inStock !== false).length;
+    const minPrice = filteredProducts.length > 0 ? Math.min(...filteredProducts.map(p => p.price)) : 0;
+    const maxPrice = filteredProducts.length > 0 ? Math.max(...filteredProducts.map(p => p.price)) : 0;
+
+    return {
+      inStockCount,
+      outOfStockCount,
+      filteredInStockCount,
+      minPrice,
+      maxPrice
     };
-    
-    return matchesSearch && matchesCategory && matchesStock();
-  });
+  }, [products, filteredProducts]);
 
-  const handleAddProduct = async (productData) => {
-  await onAdd(productData); // Make sure this is async
-  setShowForm(false);
-};
+  // Optimized event handlers
+  const handleAddProduct = useCallback(async (productData) => {
+    await onAdd(productData);
+    setShowForm(false);
+  }, [onAdd]);
 
-  const handleEditProduct = (product) => {
+  const handleUpdateProduct = useCallback(async (productData) => {
+    await onUpdate(editingProduct.id, productData);
+    setEditingProduct(null);
+    setShowForm(false);
+  }, [editingProduct, onUpdate]);
+
+  const handleEditProduct = useCallback((product) => {
     setEditingProduct(product);
     setShowForm(true);
-  };
+  }, []);
 
-const handleUpdateProduct = async (productData) => {
-  await onUpdate(editingProduct.id, productData); // Make sure this is async
-  setEditingProduct(null);
-  setShowForm(false);
-};
-
-  const handleDeleteProduct = (productId) => {
+  const handleDeleteProduct = useCallback((productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       onDelete(productId);
     }
-  };
+  }, [onDelete]);
 
-  const handleCancelForm = () => {
+  const handleCancelForm = useCallback(() => {
     setShowForm(false);
     setEditingProduct(null);
-  };
+  }, []);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedCategory('All');
     setStockFilter('All');
-  };
+  }, []);
 
-  const inStockCount = products.filter(p => p.inStock !== false).length;
-  const outOfStockCount = products.length - inStockCount;
+  // Debounced search (optional - uncomment if needed)
+  // const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     setDebouncedSearchTerm(searchTerm);
+  //   }, 300);
+  //   return () => clearTimeout(timer);
+  // }, [searchTerm]);
+
+  // Bulk actions
+  const handleBulkInStock = useCallback(() => {
+    const outOfStockProducts = filteredProducts.filter(p => p.inStock === false);
+    outOfStockProducts.forEach(product => {
+      onUpdate(product.id, { ...product, inStock: true });
+    });
+    if (outOfStockProducts.length > 0) {
+      alert(`${outOfStockProducts.length} product(s) marked as in stock`);
+    }
+  }, [filteredProducts, onUpdate]);
+
+  const handleBulkOutOfStock = useCallback(() => {
+    const inStockProducts = filteredProducts.filter(p => p.inStock !== false);
+    if (window.confirm(`Mark ${inStockProducts.length} product(s) as out of stock?`)) {
+      inStockProducts.forEach(product => {
+        onUpdate(product.id, { ...product, inStock: false });
+      });
+      alert(`${inStockProducts.length} product(s) marked as out of stock`);
+    }
+  }, [filteredProducts, onUpdate]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (window.confirm(`Delete ${filteredProducts.length} filtered product(s)? This action cannot be undone.`)) {
+      filteredProducts.forEach(product => {
+        onDelete(product.id);
+      });
+    }
+  }, [filteredProducts, onDelete]);
+
+  // Loading skeleton for ProductCard
+  const ProductCardSkeleton = () => (
+    <div className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+      <div className="h-48 bg-gray-200"></div>
+      <div className="p-4">
+        <div className="h-4 bg-gray-200 rounded mb-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+        <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
+        <div className="flex justify-between">
+          <div className="h-8 bg-gray-200 rounded w-20"></div>
+          <div className="h-8 bg-gray-200 rounded w-20"></div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
@@ -136,11 +210,17 @@ const handleUpdateProduct = async (productData) => {
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                   <div className="p-4 sm:p-6">
-                    <ProductForm
-                      product={editingProduct}
-                      onSubmit={editingProduct ? handleUpdateProduct : handleAddProduct}
-                      onCancel={handleCancelForm}
-                    />
+                    <Suspense fallback={
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+                      </div>
+                    }>
+                      <ProductForm
+                        product={editingProduct}
+                        onSubmit={editingProduct ? handleUpdateProduct : handleAddProduct}
+                        onCancel={handleCancelForm}
+                      />
+                    </Suspense>
                   </div>
                 </div>
               </div>
@@ -163,7 +243,7 @@ const handleUpdateProduct = async (productData) => {
               <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg sm:text-2xl font-bold text-green-600">{inStockCount}</h3>
+                    <h3 className="text-lg sm:text-2xl font-bold text-green-600">{statistics.inStockCount}</h3>
                     <p className="text-gray-600 text-sm sm:text-base">In Stock</p>
                   </div>
                   <div className="bg-green-100 p-2 sm:p-3 rounded-lg">
@@ -175,7 +255,7 @@ const handleUpdateProduct = async (productData) => {
               <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg sm:text-2xl font-bold text-red-600">{outOfStockCount}</h3>
+                    <h3 className="text-lg sm:text-2xl font-bold text-red-600">{statistics.outOfStockCount}</h3>
                     <p className="text-gray-600 text-sm sm:text-base">Out of Stock</p>
                   </div>
                   <div className="bg-red-100 p-2 sm:p-3 rounded-lg">
@@ -329,15 +409,23 @@ const handleUpdateProduct = async (productData) => {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                {filteredProducts.map(product => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onEdit={handleEditProduct}
-                    onDelete={handleDeleteProduct}
-                    isAdmin={true}
-                  />
-                ))}
+                <Suspense fallback={
+                  <>
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <ProductCardSkeleton key={index} />
+                    ))}
+                  </>
+                }>
+                  {filteredProducts.map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onEdit={handleEditProduct}
+                      onDelete={handleDeleteProduct}
+                      isAdmin={true}
+                    />
+                  ))}
+                </Suspense>
               </div>
             )}
 
@@ -347,30 +435,14 @@ const handleUpdateProduct = async (productData) => {
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Bulk Actions</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <button 
-                    onClick={() => {
-                      const outOfStockProducts = filteredProducts.filter(p => p.inStock === false);
-                      outOfStockProducts.forEach(product => {
-                        onUpdate(product.id, { ...product, inStock: true });
-                      });
-                      if (outOfStockProducts.length > 0) {
-                        alert(`${outOfStockProducts.length} product(s) marked as in stock`);
-                      }
-                    }}
+                    onClick={handleBulkInStock}
                     className="px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
                   >
                     Mark All In Stock
                   </button>
                   
                   <button 
-                    onClick={() => {
-                      const inStockProducts = filteredProducts.filter(p => p.inStock !== false);
-                      if (window.confirm(`Mark ${inStockProducts.length} product(s) as out of stock?`)) {
-                        inStockProducts.forEach(product => {
-                          onUpdate(product.id, { ...product, inStock: false });
-                        });
-                        alert(`${inStockProducts.length} product(s) marked as out of stock`);
-                      }
-                    }}
+                    onClick={handleBulkOutOfStock}
                     className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
                   >
                     Mark All Out of Stock
@@ -381,13 +453,7 @@ const handleUpdateProduct = async (productData) => {
                   </button>
                   
                   <button 
-                    onClick={() => {
-                      if (window.confirm(`Delete ${filteredProducts.length} filtered product(s)? This action cannot be undone.`)) {
-                        filteredProducts.forEach(product => {
-                          onDelete(product.id);
-                        });
-                      }
-                    }}
+                    onClick={handleBulkDelete}
                     className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
                   >
                     Delete Filtered
@@ -406,19 +472,19 @@ const handleUpdateProduct = async (productData) => {
                   </div>
                   <div>
                     <div className="text-lg sm:text-2xl font-bold text-green-600">
-                      {filteredProducts.filter(p => p.inStock !== false).length}
+                      {statistics.filteredInStockCount}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-600">In Stock</div>
                   </div>
                   <div>
                     <div className="text-lg sm:text-2xl font-bold text-gray-600">
-                      ₹{Math.min(...filteredProducts.map(p => p.price)).toLocaleString()}
+                      ₹{statistics.minPrice.toLocaleString()}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-600">Lowest Price</div>
                   </div>
                   <div>
                     <div className="text-lg sm:text-2xl font-bold text-indigo-600">
-                      ₹{Math.max(...filteredProducts.map(p => p.price)).toLocaleString()}
+                      ₹{statistics.maxPrice.toLocaleString()}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-600">Highest Price</div>
                   </div>
@@ -432,4 +498,4 @@ const handleUpdateProduct = async (productData) => {
   );
 };
 
-export default ManageProducts;
+export default React.memo(ManageProducts);

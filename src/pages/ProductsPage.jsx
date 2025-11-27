@@ -1,84 +1,174 @@
 // pages/ProductsPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Search, Filter, Package, SlidersHorizontal } from 'lucide-react';
-import ProductCard from '../components/product/ProductCard';
-import { subscribeToCategoriesUpdates } from '../utils/helpers';
 
+// Lazy load ProductCard for better performance
+const ProductCard = lazy(() => import('../components/product/ProductCard'));
 
-const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems,onRemoveFromWishlist, cartItems, initialCategory = 'all',  setCurrentView }) => {
+// Google Drive URL conversion function
+const convertGoogleDriveUrl = (url) => {
+  if (typeof url !== 'string' || !url) {
+    console.error('Invalid URL provided to convertGoogleDriveUrl:', url);
+    return null;
+  }
+  
+  try {
+    let fileId = null;
+    
+    // Handle different Google Drive URL formats
+    if (url.includes('uc?export=view&id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('drive.google.com/file/d/')) {
+      fileId = url.split('/d/')[1].split('/')[0];
+    } else if (url.includes('/open?id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('/view?usp=drive_link') || url.includes('/view?usp=sharing')) {
+      fileId = url.split('/d/')[1].split('/view')[0];
+    }
+    
+    if (fileId) {
+      return `https://lh3.googleusercontent.com/d/${fileId}=s400`;
+    }
+    
+    return url;
+  } catch (e) {
+    console.error('Error converting URL:', url, e);
+    return url;
+  }
+};
+
+const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems, onRemoveFromWishlist, cartItems, initialCategory = 'all', setCurrentView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState('name');
   const [priceRange, setPriceRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Process products with Google Drive URL conversion
+  const processedProducts = useMemo(() => {
+    return products.map(product => ({
+      ...product,
+      image: convertGoogleDriveUrl(product.image),
+      images: product.images ? product.images.map(img => convertGoogleDriveUrl(img)) : [convertGoogleDriveUrl(product.image)]
+    }));
+  }, [products]);
+
   // Update category when initialCategory changes
   useEffect(() => {
-    setSelectedCategory(initialCategory);
+    if (initialCategory && initialCategory !== 'all') {
+      setSelectedCategory(initialCategory);
+      setShowFilters(false);
+    } else {
+      setSelectedCategory('all');
+    }
   }, [initialCategory]);
-  
-  const filteredProducts = products
-    .filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory || (selectedCategory === 'all' && true);
-      const matchesPrice = () => {
-        switch (priceRange) {
-          case 'under-500':
-            return product.price < 500;
-          case '500-1000':
-            return product.price >= 500 && product.price <= 1000;
-          case '1000-2000':
-            return product.price >= 1000 && product.price <= 2000;
-          case 'above-2000':
-            return product.price > 2000;
-          default:
-            return true;
-        }
-      };
-      
-      return matchesSearch && matchesCategory && matchesPrice();
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'price-low':
-          return a.price - b.price;
-        case 'price-high':
-          return b.price - a.price;
-        case 'rating':
-          return b.rating - a.rating;
-        case 'newest':
-          return new Date(b.createdAt || '2024-01-01') - new Date(a.createdAt || '2024-01-01');
-        default:
-          return 0;
-      }
-    });
 
-  const clearAllFilters = () => {
+  // Memoized filtered products for performance
+  const filteredProducts = useMemo(() => {
+    return processedProducts
+      .filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = () => {
+          if (selectedCategory === 'all' || selectedCategory === 'All') return true;
+          return product.category === selectedCategory;
+        };
+        const matchesPrice = () => {
+          switch (priceRange) {
+            case 'under-500':
+              return product.price < 500;
+            case '500-1000':
+              return product.price >= 500 && product.price <= 1000;
+            case '1000-2000':
+              return product.price >= 1000 && product.price <= 2000;
+            case 'above-2000':
+              return product.price > 2000;
+            default:
+              return true;
+          }
+        };
+        
+        return matchesSearch && matchesCategory() && matchesPrice();
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'price-low':
+            return a.price - b.price;
+          case 'price-high':
+            return b.price - a.price;
+          case 'rating':
+            return b.rating - a.rating;
+          case 'newest':
+            return new Date(b.createdAt || '2024-01-01') - new Date(a.createdAt || '2024-01-01');
+          default:
+            return 0;
+        }
+      });
+  }, [processedProducts, searchTerm, selectedCategory, priceRange, sortBy]);
+
+  // Memoized statistics
+  const statistics = useMemo(() => {
+    if (filteredProducts.length === 0) {
+      return {
+        minPrice: 0,
+        maxRating: 0,
+        inStockCount: 0
+      };
+    }
+    
+    return {
+      minPrice: Math.min(...filteredProducts.map(p => p.price)),
+      maxRating: Math.max(...filteredProducts.map(p => p.rating)),
+      inStockCount: filteredProducts.filter(p => p.inStock !== false).length
+    };
+  }, [filteredProducts]);
+
+  // Optimized event handlers
+  const clearAllFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedCategory('all');
     setPriceRange('all');
     setSortBy('name');
-  };
+  }, []);
 
-  const isInWishlist = (productId) => {
+  const isInWishlist = useCallback((productId) => {
     return wishlistItems && wishlistItems.some(item => item.id === productId);
-  };
+  }, [wishlistItems]);
 
-  const isInCart = (productId) => {
+  const isInCart = useCallback((productId) => {
     return cartItems && cartItems.some(item => item.id === productId);
-  };
+  }, [cartItems]);
 
-// Static category options
-const categoryOptions = [
-  { id: 'all', title: 'All' },
-  { id: 'Bridal Bangles', title: 'Bridal Bangles' },
-  { id: 'Glass Bangles', title: 'Glass Bangles' },
-  { id: 'Give Aways', title: 'Give Aways' },
-  { id: 'Traditional', title: 'Traditional' },
-  { id: 'Hair Accessories', title: 'Hair Accessories' }
-];
+  const handleNavigateToCart = useCallback(() => {
+    setCurrentView('cart');
+  }, [setCurrentView]);
+
+  // Static category options
+  const categoryOptions = [
+    { id: 'all', title: 'All' },
+    { id: 'Bridal Bangles', title: 'Bridal Bangles' },
+    { id: 'Side Bangles', title: 'Side Bangles' },
+    { id: 'Hair Accessories', title: 'Hair Accessories' },
+    { id: 'Traditional', title: 'Traditional' },
+    { id: 'Return Gifts', title: 'Return Gifts' }
+  ];
+
+  // ProductCard loading skeleton
+  const ProductCardSkeleton = () => (
+    <div className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+      <div className="aspect-square bg-gray-200"></div>
+      <div className="p-3 sm:p-4">
+        <div className="h-4 bg-gray-200 rounded mb-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+        <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
+        <div className="flex justify-between">
+          <div className="h-8 bg-gray-200 rounded w-20"></div>
+          <div className="h-8 bg-gray-200 rounded w-20"></div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
@@ -125,7 +215,7 @@ const categoryOptions = [
           </div>
         </div>
 
-        {/* Mobile Filters Panel */}
+        {/* Mobile Filters Panel - ONLY SHOWN WHEN showFilters IS TRUE */}
         {showFilters && (
           <div className="bg-white rounded-lg shadow-md p-4 mb-6 border">
             <div className="space-y-4">
@@ -186,87 +276,6 @@ const categoryOptions = [
           </div>
         )}
 
-        {/* Desktop Filters Section */}
-        <div className="hidden lg:block bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Search - takes 2 columns on large screens */}
-            <div className="relative lg:col-span-2">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              />
-            </div>
-            
-            {/* Category Filter */}
-            <div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              >
-                {categoryOptions.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.title}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Price Range Filter */}
-            <div>
-              <select
-                value={priceRange}
-                onChange={(e) => setPriceRange(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              >
-                <option value="all">All Prices</option>
-                <option value="under-500">Under ₹500</option>
-                <option value="500-1000">₹500 - ₹1,000</option>
-                <option value="1000-2000">₹1,000 - ₹2,000</option>
-                <option value="above-2000">Above ₹2,000</option>
-              </select>
-            </div>
-            
-            {/* Sort Filter */}
-            <div>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              >
-                <option value="name">Sort by Name</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="rating">Highest Rated</option>
-                <option value="newest">Newest First</option>
-              </select>
-            </div>
-          </div>
-          
-          {/* Filter Results Info */}
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-            <span className="text-gray-600">
-              {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
-            </span>
-            <div className="flex items-center space-x-4">
-              {(selectedCategory !== 'all' || priceRange !== 'all' || sortBy !== 'name') && (
-                <button
-                  onClick={clearAllFilters}
-                  className="text-yellow-600 hover:text-yellow-700 font-medium text-sm"
-                >
-                  Clear Filters
-                </button>
-              )}
-              <div className="flex items-center space-x-2 text-gray-500">
-                <Filter className="w-4 h-4" />
-                <span className="text-sm">Filters active</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Products Grid */}
         {filteredProducts.length === 0 ? (
           <div className="text-center py-16">
@@ -284,22 +293,30 @@ const categoryOptions = [
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {filteredProducts.map(product => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isAdmin={false}
-                onProductClick={onProductClick}
-                onAddToWishlist={onAddToWishlist}
-                onRemoveFromWishlist={onRemoveFromWishlist}
-                onAddToCart={onAddToCart}
-                isInWishlist={isInWishlist(product.id)}
-                isInCart={isInCart(product.id)}
-                wishlistItems={wishlistItems}
-                cartItems={cartItems}
-                navigateToCart={() => setCurrentView('cart')}
-              />
-            ))}
+            <Suspense fallback={
+              <>
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <ProductCardSkeleton key={index} />
+                ))}
+              </>
+            }>
+              {filteredProducts.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  isAdmin={false}
+                  onProductClick={onProductClick}
+                  onAddToWishlist={onAddToWishlist}
+                  onRemoveFromWishlist={onRemoveFromWishlist}
+                  onAddToCart={onAddToCart}
+                  isInWishlist={isInWishlist(product.id)}
+                  isInCart={isInCart(product.id)}
+                  wishlistItems={wishlistItems}
+                  cartItems={cartItems}
+                  navigateToCart={handleNavigateToCart}
+                />
+              ))}
+            </Suspense>
           </div>
         )}
 
@@ -322,19 +339,19 @@ const categoryOptions = [
               </div>
               <div>
                 <div className="text-lg sm:text-2xl font-bold text-gray-600">
-                  ₹{Math.min(...filteredProducts.map(p => p.price)).toLocaleString()}
+                  ₹{statistics.minPrice.toLocaleString()}
                 </div>
                 <div className="text-xs sm:text-sm text-gray-600">Starting Price</div>
               </div>
               <div>
                 <div className="text-lg sm:text-2xl font-bold text-indigo-600">
-                  {Math.max(...filteredProducts.map(p => p.rating)).toFixed(1)}★
+                  {statistics.maxRating.toFixed(1)}★
                 </div>
                 <div className="text-xs sm:text-sm text-gray-600">Top Rated</div>
               </div>
               <div>
                 <div className="text-lg sm:text-2xl font-bold text-green-600">
-                  {filteredProducts.filter(p => p.inStock !== false).length}
+                  {statistics.inStockCount}
                 </div>
                 <div className="text-xs sm:text-sm text-gray-600">In Stock</div>
               </div>
@@ -346,4 +363,4 @@ const categoryOptions = [
   );
 };
 
-export default ProductsPage;
+export default React.memo(ProductsPage);
