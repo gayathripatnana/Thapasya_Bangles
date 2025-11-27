@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, getDocs } from 'firebase/firestore'; // ← ADD doc, getDoc
 import { getAuth } from 'firebase/auth';
 
 // Firebase configuration
@@ -13,7 +13,6 @@ const firebaseConfig = {
   measurementId: "G-C9HL618GPW"
 };
 
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
@@ -22,6 +21,9 @@ export const db = getFirestore(app);
 
 // Initialize Auth
 export const auth = getAuth(app);
+
+// Export Firestore functions ← ADD THIS SECTION
+export { doc, getDoc, collection, getDocs }; // ← ADD THIS LINE
 
 // Collection names - centralized configuration
 export const COLLECTIONS = {
@@ -32,6 +34,7 @@ export const COLLECTIONS = {
   ORDERS: 'orders',
   FEATURED_PRODUCTS: 'featured_products',
   USERS: 'users',
+  REVIEWS: 'reviews', // ← ADD THIS if you have reviews collection
 };
 
 // Document IDs - centralized configuration

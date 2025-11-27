@@ -1,4 +1,4 @@
-// components/product/ProductCard.jsx - Fixed wishlist removal
+// components/product/ProductCard.jsx - Fixed image loading for admin view
 import React, { useState, useEffect } from 'react';
 import { Star, ShoppingCart, Heart, Edit, Trash2, AlertCircle, CheckCircle, Ruler, X } from 'lucide-react';
 
@@ -19,7 +19,7 @@ const ProductCard = ({
 }) => {
   const [selectedSize, setSelectedSize] = useState('');
   const [showSizeModal, setShowSizeModal] = useState(false);
-  const [productReviews, setProductReviews] = useState([]);
+  const [imageError, setImageError] = useState(false);
 
   // Pre-select size if product is already in wishlist with a size
   useEffect(() => {
@@ -40,26 +40,6 @@ const ProductCard = ({
       }
     }
   }, [cartItems, product.id, product.sizes]);
-
-  // Load reviews for this product
-  useEffect(() => {
-    const loadReviews = async () => {
-      try {
-        const { db, doc, getDoc } = await import('../firebase/config');
-        const reviewDoc = await getDoc(doc(db, 'reviews', product.id));
-        if (reviewDoc.exists()) {
-          const reviewData = reviewDoc.data();
-          setProductReviews(reviewData.reviews || []);
-        }
-      } catch (error) {
-        console.error('Error loading reviews:', error);
-      }
-    };
-
-    if (product.id) {
-      loadReviews();
-    }
-  }, [product.id]);
 
   const handleCardClick = (e) => {
     if (e.target.closest('.admin-buttons') || e.target.closest('.action-button') || e.target.closest('.size-selector') || e.target.closest('.size-modal')) {
@@ -128,6 +108,10 @@ const ProductCard = ({
     setShowSizeModal(false);
   };
 
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
   // Check if product is in wishlist
   const productInWishlist = wishlistItems ? 
     wishlistItems.some(item => item.id === product.id) : 
@@ -140,6 +124,9 @@ const ProductCard = ({
   const cartSelectedSize = cartItems ? 
     cartItems.find(item => item.id === product.id)?.selectedSize : '';
 
+  // Get the correct image URL
+  const imageUrl = product.images && product.images.length > 0 ? product.images[0] : product.image;
+
   return (
     <>
       <div 
@@ -149,13 +136,24 @@ const ProductCard = ({
         onClick={handleCardClick}
       >
         <div className="relative">
-          <div className="aspect-square overflow-hidden">
-            <img
-              src={product.images && product.images.length > 0 ? product.images[0] : product.image}
-              alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-              loading="lazy"
-            />
+          <div className="aspect-square overflow-hidden bg-gray-100">
+            {!imageError ? (
+              <img
+                src={imageUrl}
+                alt={product.name}
+                className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                loading="eager"
+                onError={handleImageError}
+                style={{ display: 'block' }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                <div className="text-center text-gray-400">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-2" />
+                  <p className="text-sm">Image not available</p>
+                </div>
+              </div>
+            )}
             
             {/* Stock Status Overlay */}
             {!product.inStock && (
@@ -258,28 +256,6 @@ const ProductCard = ({
             </div>
             <span className="text-gray-600 text-xs sm:text-sm ml-2">({product.rating})</span>
           </div>
-
-          {/* Display Reviews */}
-          {productReviews.length > 0 && (
-            <div className="mb-3">
-              <label className="block text-xs text-gray-600 mb-1">Recent Reviews:</label>
-              <div className="max-h-20 overflow-y-auto">
-                {productReviews.slice(0, 3).map((review, index) => (
-                  <div key={index} className="text-xs text-gray-700 mb-1 border-l-2 border-yellow-400 pl-2">
-                    <div className="flex items-center mb-1">
-                      <img 
-                        src={review.customerImage || "https://images.unsplash.com/photo-1494790108755-2616b612b672?w=20&h=20&fit=crop&crop=face"} 
-                        alt={review.customerName}
-                        className="w-4 h-4 rounded-full mr-1"
-                      />
-                      <span className="font-medium">{review.customerName}:</span>
-                    </div>
-                    <p className="text-gray-600">"{review.reviewText}"</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Size Selection for non-admin */}
           {!isAdmin && product.sizes && product.sizes.length > 0 && (

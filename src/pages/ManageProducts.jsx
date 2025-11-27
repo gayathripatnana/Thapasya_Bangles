@@ -7,6 +7,35 @@ import AdminSidebar from '../components/admin/AdminSidebar';
 const ProductCard = lazy(() => import('../components/product/ProductCard'));
 const ProductForm = lazy(() => import('../components/product/ProductForm'));
 
+// Google Drive URL conversion function
+const convertGoogleDriveUrl = (url) => {
+  if (typeof url !== 'string' || !url) {
+    return null;
+  }
+  
+  try {
+    let fileId = null;
+    
+    if (url.includes('uc?export=view&id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('drive.google.com/file/d/')) {
+      fileId = url.split('/d/')[1].split('/')[0];
+    } else if (url.includes('/open?id=')) {
+      fileId = url.split('id=')[1].split('&')[0];
+    } else if (url.includes('/view?usp=drive_link') || url.includes('/view?usp=sharing')) {
+      fileId = url.split('/d/')[1].split('/view')[0];
+    }
+    
+    if (fileId) {
+      return `https://lh3.googleusercontent.com/d/${fileId}=s400`;
+    }
+    
+    return url;
+  } catch (e) {
+    return url;
+  }
+};
+
 const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -20,6 +49,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
   const categoryOptions = ['All', 'Bridal Bangles', 'Glass Bangles', 'Give Aways', 'Traditional', 'Hair Accessories'];
 
   // Memoized filtered products for performance
+    // Memoized filtered products for performance
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -38,6 +68,15 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
       return matchesSearch && matchesCategory && matchesStock();
     });
   }, [products, searchTerm, selectedCategory, stockFilter]);
+
+  // Process products with Google Drive URL conversion - ADD THIS HERE
+  const processedProducts = useMemo(() => {
+    return filteredProducts.map(product => ({
+      ...product,
+      image: convertGoogleDriveUrl(product.image),
+      images: product.images ? product.images.map(img => convertGoogleDriveUrl(img)) : [convertGoogleDriveUrl(product.image)]
+    }));
+  }, [filteredProducts]);
 
   // Memoized statistics
   const statistics = useMemo(() => {
@@ -416,7 +455,7 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
                     ))}
                   </>
                 }>
-                  {filteredProducts.map(product => (
+                  {processedProducts.map(product => (
                     <ProductCard
                       key={product.id}
                       product={product}
