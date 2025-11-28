@@ -28,6 +28,10 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
   type: 'info'
 });
 
+      useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
+
   // Default fallback images
   const defaultHeroImages = [
     "https://images.unsplash.com/photo-1630019852942-f89202989a59?w=800&h=600&fit=crop",
