@@ -57,7 +57,7 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
     {
       icon: <Truck className="w-6 h-6 text-yellow-600" />,
       title: "Fast Delivery",
-      description: "2-5 days across India",
+      description: "5-10 days across India",
       gradient: "from-yellow-50 to-yellow-100"
     },
     {
@@ -84,7 +84,7 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
     {
       step: "3",
       title: "Delivery",
-      description: "Receive in 2-5 days",
+      description: "Receive in 7-10 days",
       icon: <Truck className="w-5 h-5" />
     }
   ];
