@@ -9,7 +9,16 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 RAZORPAY_KEY_ID = os.environ["RAZORPAY_KEY_ID"]
 RAZORPAY_KEY_SECRET = os.environ["RAZORPAY_KEY_SECRET"]
 RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+# Comma-separated list of allowed frontend origins for CORS, e.g.
+# "https://thapasyabangles.vercel.app,https://www.thapasyabangles.com,https://thapasyabangles.com"
+# Each must be an exact origin (scheme + host, no trailing slash or path) - the
+# browser's Origin header is matched exactly, not as a substring/prefix.
+FRONTEND_URLS = [
+    origin.strip().rstrip("/")
+    for origin in os.environ.get("FRONTEND_URL", "http://localhost:3000").split(",")
+    if origin.strip()
+]
 
 # Preferred: a downloaded service account key file, gitignored (see server/README.md).
 # Falls back to FIREBASE_SERVICE_ACCOUNT_JSON env var for platforms like Railway where
