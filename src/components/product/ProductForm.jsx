@@ -1,6 +1,6 @@
 // components/product/ProductForm.jsx
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, X, Upload, Star, Plus } from 'lucide-react';
+import { CheckCircle2, X, Star, Plus } from 'lucide-react';
 
 const ProductForm = ({ product, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -66,20 +66,6 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
     return url;
   }
 };
-
-  // Check if URL is a valid Google Drive URL
-  const isValidGoogleDriveUrl = (url) => {
-    if (!url || typeof url !== 'string') return false;
-    
-    const drivePatterns = [
-      /drive\.google\.com\/file\/d\/([^\/]+)/,
-      /uc\?export=view&id=([^&]+)/,
-      /\/open\?id=([^&]+)/,
-      /\/view\?usp=(drive_link|sharing)/
-    ];
-    
-    return drivePatterns.some(pattern => pattern.test(url));
-  };
 
   // Check if URL is valid
   const isValidUrl = (string) => {
@@ -235,31 +221,6 @@ const validateForm = () => {
   const removeImageField = (index) => {
     const newImages = formData.images.filter((_, i) => i !== index);
     handleInputChange('images', newImages);
-  };
-
-  // Function to handle image loading with fallbacks
-  const handleImageError = (e, img, index) => {
-    console.log(`Image ${index + 1} failed to load, trying fallback sizes`);
-    
-    // Try medium size
-    e.target.src = getGoogleDriveImageUrl(img, 'medium');
-    
-    e.target.onerror = () => {
-      // Try large size
-      e.target.src = getGoogleDriveImageUrl(img, 'large');
-      
-      e.target.onerror = () => {
-        // Try original
-        e.target.src = getGoogleDriveImageUrl(img, 'original');
-        
-        e.target.onerror = () => {
-          // Final fallback to placeholder
-          e.target.src = 'https://via.placeholder.com/200x200/f3f4f6/9ca3af?text=Image+Not+Found';
-          e.target.alt = 'Failed to load image';
-          e.target.className = 'w-full h-full object-contain p-2';
-        };
-      };
-    };
   };
 
   return (

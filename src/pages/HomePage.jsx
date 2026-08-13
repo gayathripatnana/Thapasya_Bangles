@@ -3,20 +3,28 @@ import React, { useState, useEffect } from 'react';
 import { Star, Heart, Award, Truck, ShoppingBag, Phone, MapPin, Shield, ArrowRight, ChevronLeft, ChevronRight, Ruler } from 'lucide-react';
 import { db, COLLECTIONS, DOCUMENTS } from '../firebase/config';
 import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
-import { 
-  convertGoogleDriveUrl, 
-  subscribeToCategoriesUpdates,
-  fetchCategoryImages 
+import {
+  convertGoogleDriveUrl,
+  subscribeToCategoriesUpdates
 } from '../utils/helpers';
 import CustomAlert from '../components/common/CustomAlert';
+
+// Default fallback images
+const defaultHeroImages = [
+  "https://images.unsplash.com/photo-1630019852942-f89202989a59?w=800&h=600&fit=crop",
+  "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop",
+  "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800&h=600&fit=crop",
+  "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=600&fit=crop"
+];
+
 const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFromWishlist, onAddToCart, wishlistItems, cartItems }) => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [currentFeatured, setCurrentFeatured] = useState(0);
-  const [currentImage, setCurrentImage] = useState(0);
+  const [, setCurrentImage] = useState(0);
   const [heroImages, setHeroImages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [categories, setCategories] = useState([]);
+  const [, setLoading] = useState(true);
+  const [, setError] = useState(null);
+  const [, setCategories] = useState([]);
   const [categoryImages, setCategoryImages] = useState({});
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [selectedSizes, setSelectedSizes] = useState({});
@@ -31,14 +39,6 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
       useEffect(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, []);
-
-  // Default fallback images
-  const defaultHeroImages = [
-    "https://images.unsplash.com/photo-1630019852942-f89202989a59?w=800&h=600&fit=crop",
-    "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop",
-    "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800&h=600&fit=crop",
-    "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=600&fit=crop"
-  ];
 
   // Update feature icons and gradients:
   const features = [

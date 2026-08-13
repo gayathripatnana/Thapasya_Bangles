@@ -322,7 +322,7 @@ import { orderProductViaWhatsApp } from '../utils/whatsappCheckout';
 </button>
 `;
 
-export default {
+const whatsappCheckout = {
   proceedToWhatsAppCheckout,
   orderProductViaWhatsApp,
   inquireWishlistViaWhatsApp,
@@ -332,3 +332,5 @@ export default {
   createWishlistInquiryMessage,
   createGeneralInquiryMessage
 };
+
+export default whatsappCheckout;

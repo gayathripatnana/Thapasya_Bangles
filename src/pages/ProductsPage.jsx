@@ -1,6 +1,6 @@
 // pages/ProductsPage.jsx
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Search, Filter, Package, SlidersHorizontal } from 'lucide-react';
+import { Search, Package, SlidersHorizontal } from 'lucide-react';
 import { db, COLLECTIONS, DOCUMENTS } from '../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 // Lazy load ProductCard for better performance
@@ -220,15 +220,6 @@ const getCategoryHeroImage = (selectedCategory, categoryImages) => {
     { id: 'Semi Bridal', title: 'Semi Bridal' },
     { id: 'Return Gifts', title: 'Return Gifts' }
   ];
-
-  const categoryImageMap = {
-  'all': 'all',
-  'Bridal Bangles': 'bridal',
-  'Side Bangles': 'side', 
-  'Hair Accessories': 'hair_accessories',
-  'Semi Bridal': 'semi_bridal',
-  'Return Gifts': 'return_gifts'
-};
 
   // ProductCard loading skeleton
   const ProductCardSkeleton = () => (

@@ -1,6 +1,6 @@
 // pages/CartPage.jsx - Complete with address saving and cart clearing
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Tag, Truck, Shield, RotateCcw, Star, Phone, User, Mail, MapPin, Ruler, AlertCircle, CheckCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Truck, Shield, RotateCcw, Star, Phone, User, Ruler, AlertCircle, CheckCircle } from 'lucide-react';
 import { proceedToWhatsAppCheckout } from '../utils/whatsappCheckout';
 import { getProductsByCategory } from '../utils/helpers';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
@@ -283,17 +283,10 @@ const handleFinalCheckout = async () => {
       return;
     }
 
-    const orderSummary = {
-      subtotal,
-      discount: 0,
-      deliveryCharges,
-      total
-    };
-
     try {
       const userDocRef = doc(db, 'users', currentUserId);
       const userDoc = await getDoc(userDocRef);
-      
+
       if (!userDoc.exists()) {
         setError('User data not found. Please fill the form.');
         setShowCustomerForm(true);
@@ -334,7 +327,7 @@ const handleFinalCheckout = async () => {
       setError('Failed to load user data. Please fill the form.');
       setShowCustomerForm(true);
     }
-  }, [cartItems, deliveryCharges, subtotal, total, currentUserId]);
+  }, [currentUserId]);
 
   const handleRelatedProductClick = useCallback((productId) => {
     if (onProductClick) {
@@ -355,24 +348,6 @@ const handleFinalCheckout = async () => {
     }
     setShowSizeModal(null);
   }, [onUpdateCartSize]);
-
-  // Loading skeleton for cart items
-  const CartItemSkeleton = () => (
-    <div className="p-4 sm:p-6 border-b border-gray-200 animate-pulse">
-      <div className="flex items-start space-x-4">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded-lg"></div>
-        <div className="flex-1 space-y-2">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-        </div>
-        <div className="space-y-2">
-          <div className="h-4 bg-gray-200 rounded w-4"></div>
-          <div className="h-8 bg-gray-200 rounded w-20"></div>
-        </div>
-      </div>
-    </div>
-  );
 
   if (cartItems.length === 0) {
     return (

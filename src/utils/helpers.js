@@ -1,18 +1,16 @@
 // utils/helpers.js
 import { db, COLLECTIONS, DOCUMENTS } from '../firebase/config';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
   orderBy,
-  onSnapshot,
-  arrayUnion,
-  arrayRemove 
+  onSnapshot
 } from 'firebase/firestore';
 
 /**

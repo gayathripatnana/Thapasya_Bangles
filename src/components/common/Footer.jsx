@@ -20,20 +20,20 @@ const Footer = () => {
           <div>
             <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-gray-300">
-              <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Our Story</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Craftsmanship</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Care Guide</a></li>
+              <li><button type="button" className="hover:text-white transition-colors">About Us</button></li>
+              <li><button type="button" className="hover:text-white transition-colors">Our Story</button></li>
+              <li><button type="button" className="hover:text-white transition-colors">Craftsmanship</button></li>
+              <li><button type="button" className="hover:text-white transition-colors">Care Guide</button></li>
             </ul>
           </div>
           
           <div>
             <h4 className="text-lg font-semibold mb-4">Categories</h4>
             <ul className="space-y-2 text-gray-300">
-              <li><a href="#" className="hover:text-white transition-colors">Traditional</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Contemporary</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Designer</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Bridal Collection</a></li>
+              <li><button type="button" className="hover:text-white transition-colors">Traditional</button></li>
+              <li><button type="button" className="hover:text-white transition-colors">Contemporary</button></li>
+              <li><button type="button" className="hover:text-white transition-colors">Designer</button></li>
+              <li><button type="button" className="hover:text-white transition-colors">Bridal Collection</button></li>
             </ul>
           </div>
           
@@ -42,7 +42,7 @@ const Footer = () => {
             <div className="space-y-3 text-gray-300">
               <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4" />
-                <span>+91 9180740 86883</span>
+                <span>+91 80740 86883</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4" />

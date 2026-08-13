@@ -1,6 +1,6 @@
 // pages/ProductDetailsPage.jsx - Updated with Google Drive URL conversion
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Package, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, RotateCcw, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
+import { ArrowLeft, Package, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
 
 // Add the Google Drive URL conversion function

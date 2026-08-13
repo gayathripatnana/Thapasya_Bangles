@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config'; // Make sure you have this firebase config file
 
 export const addToCart = async (userId, product) => {

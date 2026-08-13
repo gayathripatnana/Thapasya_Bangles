@@ -1,22 +1,17 @@
 // components/common/Header.jsx
 import React, { useState } from 'react';
-import { 
-  ShoppingBag, 
-  Home, 
-  Grid, 
-  BarChart3, 
-  User, 
-  LogOut, 
-  ShoppingCart, 
-  Heart, 
-  Menu, 
-  X 
+import {
+  Home,
+  Grid,
+  BarChart3,
+  User,
+  LogOut,
+  ShoppingCart,
+  Heart,
+  Menu,
+  X
 } from 'lucide-react';
-import { 
-  convertGoogleDriveUrl, 
-  subscribeToCategoriesUpdates,
-  fetchCategoryImages 
-} from '../../utils/helpers';
+import { convertGoogleDriveUrl } from '../../utils/helpers';
 const Header = ({ 
   currentView, 
   setCurrentView, 

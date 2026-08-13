@@ -23,8 +23,7 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
   const totalProducts = products.length;
   const totalOrders = orders.length;
   const inStockProducts = products.filter(p => p.inStock !== false).length;
-  const outOfStockProducts = totalProducts - inStockProducts;
-  
+
   // Order statistics
   const processingOrders = orders.filter(o => o.status === 'Processing').length;
   const shippedOrders = orders.filter(o => o.status === 'Shipped').length;
@@ -33,10 +32,6 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
   // Revenue calculation
   const totalRevenue = orders
     .filter(o => o.status === 'Delivered')
-    .reduce((sum, order) => sum + order.amount, 0);
-  
-  const pendingRevenue = orders
-    .filter(o => o.status !== 'Delivered')
     .reduce((sum, order) => sum + order.amount, 0);
 
   // Recent orders

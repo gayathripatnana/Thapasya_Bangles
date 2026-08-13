@@ -13,14 +13,12 @@ import ManageOrders from './pages/ManageOrders';
 import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
 import CustomAlert from './components/common/CustomAlert';
-import { 
-  fetchProducts, 
-  addProduct, 
-  updateProduct, 
+import {
+  addProduct,
+  updateProduct,
   deleteProduct,
   subscribeToProductsUpdates,
-  subscribeToCategoriesUpdates,
-  addToFeaturedProducts, 
+  addToFeaturedProducts,
   removeFromFeaturedProducts
 } from './utils/helpers';
 
@@ -255,7 +253,6 @@ useEffect(() => {
   const handleRegister = async (formData, isGoogleAuth = false) => {
     try {
       let userData;
-      let userUid;
 
       if (isGoogleAuth) {
         // Google Auth registration
@@ -263,19 +260,17 @@ useEffect(() => {
           ...formData,
           uid: formData.uid
         };
-        userUid = formData.uid;
       } else {
         // Email/password registration
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         const firebaseUser = userCredential.user;
-        
+
         userData = {
           uid: firebaseUser.uid,
           name: formData.name,
           email: formData.email,
           isGoogleAuth: false
         };
-        userUid = firebaseUser.uid;
       }
 
       // Check if admin (based on email)

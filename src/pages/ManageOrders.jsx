@@ -1,6 +1,6 @@
 // pages/ManageOrders.jsx
 import React, { useState } from 'react';
-import { Search, Filter, Download, Eye, Phone, Mail, Clock, Truck, CheckCircle, Package } from 'lucide-react';
+import { Search, Download, Eye, Phone, Mail, Clock, Truck, CheckCircle, Package } from 'lucide-react';
 import AdminSidebar from '../components/admin/AdminSidebar';
 
 const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
