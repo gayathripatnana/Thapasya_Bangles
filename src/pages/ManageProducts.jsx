@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Plus, Search, Filter, Menu, X, Package, AlertTriangle, CheckCircle } from 'lucide-react';
 import AdminSidebar from '../components/admin/AdminSidebar';
+import { mergeCategories } from '../utils/categoryConstants';
 
 // Lazy load heavy components
 const ProductCard = lazy(() => import('../components/product/ProductCard'));
@@ -36,7 +37,7 @@ const convertGoogleDriveUrl = (url) => {
   }
 };
 
-const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView }) => {
+const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView, customCategories = [] }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,8 +46,11 @@ const ManageProducts = ({ products, onAdd, onUpdate, onDelete, setCurrentView })
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Static categories
-  const categoryOptions = ['All', 'Bridal Bangles', 'Glass Bangles', 'Give Aways', 'Traditional', 'Hair Accessories'];
+  // Built-in + admin-added categories, merged. matchesCategory below does a direct
+  // string comparison against product.category, so this must match ProductForm.jsx's
+  // options exactly - both derive from the same mergeCategories() source of truth.
+  const categoryTitles = mergeCategories(customCategories).map(cat => cat.title);
+  const categoryOptions = ['All', ...categoryTitles];
 
 // Memoized filtered products for performance
 const filteredProducts = useMemo(() => {
@@ -260,6 +264,7 @@ const filteredProducts = useMemo(() => {
                         product={editingProduct}
                         onSubmit={editingProduct ? handleUpdateProduct : handleAddProduct}
                         onCancel={handleCancelForm}
+                        categoryOptions={categoryTitles}
                       />
                     </Suspense>
                   </div>

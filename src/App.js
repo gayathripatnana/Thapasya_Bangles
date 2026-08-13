@@ -13,6 +13,8 @@ import ManageOrders from './pages/ManageOrders';
 import ManageCustomers from './pages/ManageCustomers';
 import AdminReports from './pages/AdminReports';
 import AdminSettings from './pages/AdminSettings';
+import ManageCategories from './pages/ManageCategories';
+import ManageShipping from './pages/ManageShipping';
 import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
 import MyOrdersPage from './pages/MyOrdersPage';
@@ -23,7 +25,12 @@ import {
   deleteProduct,
   subscribeToProductsUpdates,
   addToFeaturedProducts,
-  removeFromFeaturedProducts
+  removeFromFeaturedProducts,
+  subscribeToCategoryList,
+  subscribeToCategoryImages,
+  addCategory,
+  deleteCategory,
+  updateCategoryImage
 } from './utils/helpers';
 import {
   subscribeToOrdersUpdates,
@@ -31,6 +38,7 @@ import {
 } from './utils/orderHelpers';
 import { subscribeToCustomersUpdates } from './utils/customerHelpers';
 import { subscribeToStoreSettings, updateStoreSettings, DEFAULT_STORE_SETTINGS } from './utils/settingsHelpers';
+import { subscribeToShippingRates, updateShippingRates, DEFAULT_SHIPPING_SETTINGS } from './utils/shippingHelpers';
 
 // Firebase Auth imports
 import { 
@@ -67,7 +75,10 @@ function App() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [customCategories, setCustomCategories] = useState([]);
+  const [categoryImages, setCategoryImages] = useState({});
   const [storeSettings, setStoreSettings] = useState(DEFAULT_STORE_SETTINGS);
+  const [shippingRates, setShippingRates] = useState(DEFAULT_SHIPPING_SETTINGS);
   const [cartItems, setCartItems] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +147,24 @@ function App() {
     return () => unsubscribe && unsubscribe();
   }, []);
 
+  // Load admin-added custom categories from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToCategoryList((fetchedCategories) => {
+      setCustomCategories(fetchedCategories);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
+  // Load category images from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToCategoryImages((images) => {
+      setCategoryImages(images);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
   // Load orders from Firebase
   useEffect(() => {
     const unsubscribe = subscribeToOrdersUpdates((fetchedOrders) => {
@@ -163,6 +192,15 @@ function App() {
     return () => unsubscribe && unsubscribe();
   }, []);
 
+  // Load shipping rates from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToShippingRates((rates) => {
+      setShippingRates(rates);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
   // Add this useEffect in App.js
 useEffect(() => {
   const handleBackButton = () => {
@@ -185,6 +223,8 @@ useEffect(() => {
       case 'admin-customers':
       case 'admin-reports':
       case 'admin-settings':
+      case 'admin-categories':
+      case 'admin-shipping':
         setCurrentView('admin-dashboard');
         break;
       case 'products':
@@ -411,6 +451,39 @@ useEffect(() => {
     }
   };
 
+  const handleAddCategory = async (categoryData) => {
+    try {
+      await addCategory(categoryData);
+      return true;
+    } catch (error) {
+      console.error('Error adding category:', error);
+      showAlert('Error', error.message || 'Error adding category. Please try again.', 'error');
+      return false;
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId) => {
+    try {
+      await deleteCategory(categoryId);
+      return true;
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      showAlert('Error', 'Error deleting category. Please try again.', 'error');
+      return false;
+    }
+  };
+
+  const handleUpdateCategoryImage = async (categoryId, imageUrl) => {
+    try {
+      await updateCategoryImage(categoryId, imageUrl);
+      return true;
+    } catch (error) {
+      console.error('Error updating category image:', error);
+      showAlert('Error', 'Error updating category image. Please try again.', 'error');
+      return false;
+    }
+  };
+
   const updateOrderStatus = async (orderId, status) => {
     try {
       await updateOrderStatusInFirestore(orderId, status);
@@ -428,6 +501,18 @@ useEffect(() => {
     } catch (error) {
       console.error('Error updating store settings:', error);
       showAlert('Error', 'Error updating store settings. Please try again.', 'error');
+      return false;
+    }
+  };
+
+  const handleUpdateShippingRates = async (ratesData) => {
+    try {
+      await updateShippingRates(ratesData);
+      showAlert('Success', 'Shipping rates updated successfully.', 'success');
+      return true;
+    } catch (error) {
+      console.error('Error updating shipping rates:', error);
+      showAlert('Error', 'Error updating shipping rates. Please try again.', 'error');
       return false;
     }
   };
@@ -633,10 +718,12 @@ useEffect(() => {
           wishlistItems={wishlistItems}
           cartItems={cartItems}
           storeSettings={storeSettings}
+          customCategories={customCategories}
+          categoryImages={categoryImages}
         />;
       case 'products':
-        return <ProductsPage 
-          products={products} 
+        return <ProductsPage
+          products={products}
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
           onRemoveFromWishlist={handleRemoveFromWishlist}
@@ -645,6 +732,8 @@ useEffect(() => {
           cartItems={cartItems}
           setCurrentView={handleViewChange}
           initialCategory={selectedCategory}
+          customCategories={customCategories}
+          categoryImages={categoryImages}
         />;
       case 'product-details':
         const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -682,6 +771,8 @@ useEffect(() => {
           onUpdateCartSize={handleUpdateCartSize}
           currentUserId={user?.uid}
           storeSettings={storeSettings}
+          shippingRates={shippingRates}
+          showAlert={showAlert}
         />;
       case 'wishlist':
         return <WishlistPage
@@ -729,6 +820,7 @@ useEffect(() => {
             onUpdate={handleUpdateProduct}
             onDelete={handleDeleteProduct}
             setCurrentView={setCurrentView}
+            customCategories={customCategories}
           />
         ) : <HomePage 
           setCurrentView={setCurrentView} 
@@ -789,6 +881,39 @@ useEffect(() => {
           <AdminSettings
             storeSettings={storeSettings}
             onUpdateSettings={handleUpdateStoreSettings}
+            setCurrentView={setCurrentView}
+          />
+        ) : <HomePage
+          setCurrentView={setCurrentView}
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
+      case 'admin-categories':
+        return isAdmin ? (
+          <ManageCategories
+            customCategories={customCategories}
+            categoryImages={categoryImages}
+            onAddCategory={handleAddCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onUpdateCategoryImage={handleUpdateCategoryImage}
+            setCurrentView={setCurrentView}
+          />
+        ) : <HomePage
+          setCurrentView={setCurrentView}
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
+      case 'admin-shipping':
+        return isAdmin ? (
+          <ManageShipping
+            shippingRates={shippingRates}
+            onUpdateShippingRates={handleUpdateShippingRates}
             setCurrentView={setCurrentView}
           />
         ) : <HomePage

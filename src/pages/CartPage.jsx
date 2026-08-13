@@ -1,13 +1,17 @@
 // pages/CartPage.jsx - Complete with address saving and cart clearing
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Truck, Shield, RotateCcw, Star, Phone, User, Ruler, AlertCircle, CheckCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Truck, Shield, RotateCcw, Star, Phone, User, Ruler, AlertCircle, CheckCircle, CreditCard } from 'lucide-react';
 import { proceedToWhatsAppCheckout } from '../utils/whatsappCheckout';
 import { getProductsByCategory } from '../utils/helpers';
 import { createOrder } from '../utils/orderHelpers';
 import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
 import { EMPTY_ADDRESS, normalizeAddress, isAddressComplete } from '../utils/addressHelpers';
+import { createRazorpayOrder, verifyRazorpayPayment, openRazorpayCheckout } from '../utils/paymentHelpers';
+import { handleImageFallback } from '../utils/imagePlaceholder';
+import { calculateShippingCost, calculateTotalWeight, DEFAULT_SHIPPING_SETTINGS } from '../utils/shippingHelpers';
+import { INDIAN_STATES } from '../utils/indianStates';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db, auth } from '../firebase/config';
 
 // Google Drive URL conversion function
 const convertGoogleDriveUrl = (url) => {
@@ -41,7 +45,7 @@ const convertGoogleDriveUrl = (url) => {
   }
 };
 
-const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize, currentUserId, storeSettings = DEFAULT_STORE_SETTINGS }) => {
+const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize, currentUserId, storeSettings = DEFAULT_STORE_SETTINGS, shippingRates = DEFAULT_SHIPPING_SETTINGS, showAlert }) => {
   
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
@@ -57,18 +61,20 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
   const [isSavingData, setIsSavingData] = useState(false);
   const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
   const [dataSaved, setDataSaved] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
       useEffect(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, []);
 
   // Memoized calculations for performance
-  const { subtotal, deliveryCharges, total } = useMemo(() => {
+  const { subtotal, deliveryCharges, total, totalWeight } = useMemo(() => {
     const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const deliveryCharges = subtotal > 1500 ? 0 : 99;
+    const totalWeight = calculateTotalWeight(cartItems);
+    const deliveryCharges = calculateShippingCost(cartItems, customerInfo.address.state, shippingRates);
     const total = subtotal + deliveryCharges;
-    
-    return { subtotal, deliveryCharges, total };
-  }, [cartItems]);
+
+    return { subtotal, deliveryCharges, total, totalWeight };
+  }, [cartItems, customerInfo.address.state, shippingRates]);
 
   // Process cart items with optimized images
   const processedCartItems = useMemo(() => {
@@ -297,7 +303,9 @@ const handleFinalCheckout = async () => {
       })),
       subtotal,
       deliveryCharges,
-      total
+      total,
+      paymentMethod: 'WhatsApp',
+      paymentStatus: 'Pay on Delivery / Manual'
     });
   } catch (error) {
     console.error('Error saving order, continuing with WhatsApp checkout:', error);
@@ -312,6 +320,79 @@ const handleFinalCheckout = async () => {
   // Close confirmation modal
   setShowCheckoutConfirmation(false);
 };
+
+  const handlePayOnline = async () => {
+    if (!currentUserId || !auth.currentUser) {
+      setError('Please log in to pay online');
+      return;
+    }
+
+    if (!isAddressComplete(customerInfo.address) || !customerInfo.phone) {
+      setError('Please save your delivery details first');
+      setShowCustomerForm(true);
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    setError('');
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+
+      const orderData = {
+        customerId: currentUserId,
+        customerName: customerInfo.name || '',
+        customerPhone: customerInfo.phone,
+        customerEmail: customerInfo.email || '',
+        address: normalizeAddress(customerInfo.address),
+        items: cartItems.map(item => ({
+          productId: item.id,
+          name: item.name,
+          category: item.category || '',
+          image: item.image || '',
+          selectedSize: item.selectedSize || null,
+          price: item.price,
+          quantity: item.quantity
+        }))
+      };
+
+      const { order_id: orderId, key_id: keyId, amount } = await createRazorpayOrder(orderData, idToken);
+
+      openRazorpayCheckout({
+        orderId,
+        amount,
+        keyId,
+        name: customerInfo.name,
+        email: customerInfo.email,
+        contact: customerInfo.phone,
+        onSuccess: async (response) => {
+          try {
+            await verifyRazorpayPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            await clearCartAfterCheckout();
+            setShowCheckoutConfirmation(false);
+            showAlert && showAlert('Payment Successful', 'Your payment was received and your order has been placed!', 'success');
+          } catch (verifyError) {
+            console.error('Error verifying payment:', verifyError);
+            setError(`Payment received but confirmation failed. Please contact us with payment ID: ${response.razorpay_payment_id}`);
+          } finally {
+            setIsProcessingPayment(false);
+          }
+        },
+        onFailure: (err) => {
+          setError(err.message);
+          setIsProcessingPayment(false);
+        }
+      });
+    } catch (err) {
+      console.error('Error initiating payment:', err);
+      setError(err.message || 'Unable to start payment. Please try again.');
+      setIsProcessingPayment(false);
+    }
+  };
 
   const handleQuickCheckout = useCallback(async () => {
     // Add proper validation
@@ -456,7 +537,7 @@ const handleFinalCheckout = async () => {
                           loading="lazy"
                           onError={(e) => {
                             console.error('Failed to load cart item image:', item.image);
-                            e.target.src = 'https://via.placeholder.com/100x100/f3f4f6/9ca3af?text=Image+Error';
+                            handleImageFallback(e, 100, 'Image Error');
                           }}
                         />
                       </div>
@@ -582,7 +663,7 @@ const handleFinalCheckout = async () => {
                             loading="lazy"
                             onError={(e) => {
                               console.error('Failed to load related product image:', product.image);
-                              e.target.src = 'https://via.placeholder.com/300x300/f3f4f6/9ca3af?text=Image+Error';
+                              handleImageFallback(e, 300, 'Image Error');
                             }}
                           />
                           {/* Quick Add Button */}
@@ -681,9 +762,9 @@ const handleFinalCheckout = async () => {
                     <span className="font-medium text-sm">Delivery Information</span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    {deliveryCharges === 0 
-                      ? 'Free delivery on orders above ₹1,500' 
-                      : `Add ₹${(1500 - subtotal).toLocaleString()} more for free delivery`
+                    {isAddressComplete(customerInfo.address)
+                      ? `Shipping to ${customerInfo.address.state}: ${totalWeight.toFixed(2)}kg × ₹${deliveryCharges > 0 && totalWeight > 0 ? (deliveryCharges / totalWeight).toFixed(0) : '0'}/kg = ₹${deliveryCharges.toLocaleString()}`
+                      : 'Shipping is calculated based on order weight and your delivery state'
                     }
                   </p>
                 </div>
@@ -773,13 +854,16 @@ const handleFinalCheckout = async () => {
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-2 mt-2">
-                          <input
-                            type="text"
-                            placeholder="State *"
+                          <select
                             value={customerInfo.address.state}
                             onChange={(e) => handleAddressChange('state', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                          />
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm bg-white"
+                          >
+                            <option value="">Select State *</option>
+                            {INDIAN_STATES.map(state => (
+                              <option key={state} value={state}>{state}</option>
+                            ))}
+                          </select>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -837,18 +921,41 @@ const handleFinalCheckout = async () => {
                       <Phone className="w-5 h-5" />
                       <span>Proceed to Checkout</span>
                     </button>
+                  ) : dataSaved ? (
+                    <>
+                      <button
+                        onClick={handlePayOnline}
+                        disabled={isProcessingPayment}
+                        className={`w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base ${
+                          isProcessingPayment
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transform hover:-translate-y-1 hover:shadow-lg'
+                        }`}
+                      >
+                        {isProcessingPayment ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        ) : (
+                          <CreditCard className="w-5 h-5" />
+                        )}
+                        <span>{isProcessingPayment ? 'Processing...' : 'Pay Online (Razorpay)'}</span>
+                      </button>
+                      <button
+                        onClick={handleSaveAndContinue}
+                        disabled={isProcessingPayment}
+                        className="w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 transform hover:-translate-y-1 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Phone className="w-5 h-5" />
+                        <span>Checkout via WhatsApp</span>
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={handleSaveAndContinue}
-                      disabled={!dataSaved || isSavingData}
-                      className={`w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base ${
-                        !dataSaved || isSavingData
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 transform hover:-translate-y-1 hover:shadow-lg'
-                      }`}
+                      disabled={isSavingData}
+                      className="w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base bg-gray-300 text-gray-500 cursor-not-allowed"
                     >
                       <Phone className="w-5 h-5" />
-                      <span>{dataSaved ? 'Checkout via WhatsApp' : 'Save Data First'}</span>
+                      <span>Save Data First</span>
                     </button>
                   )}
 

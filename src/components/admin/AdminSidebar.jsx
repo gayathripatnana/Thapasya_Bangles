@@ -1,6 +1,6 @@
 // components/admin/AdminSidebar.jsx
 import React from 'react';
-import { BarChart3, Package, Truck, Settings, Users, FileText } from 'lucide-react';
+import { BarChart3, Package, Truck, Settings, Users, FileText, Tag, MapPin } from 'lucide-react';
 
 const AdminSidebar = ({ currentView, setCurrentView, products = [], orders = [] }) => {
   const activeProducts = products.filter(p => p.inStock !== false).length;
@@ -23,14 +23,26 @@ const AdminSidebar = ({ currentView, setCurrentView, products = [], orders = [] 
       icon: Package,
       description: 'Manage Inventory'
     },
-    { 
-      id: 'admin-orders', 
-      label: 'Orders', 
+    {
+      id: 'admin-orders',
+      label: 'Orders',
       icon: Truck,
       description: 'Order Management'
     },
-    { 
-      id: 'admin-customers', 
+    {
+      id: 'admin-categories',
+      label: 'Categories',
+      icon: Tag,
+      description: 'Manage Categories'
+    },
+    {
+      id: 'admin-shipping',
+      label: 'Shipping',
+      icon: MapPin,
+      description: 'Shipping Rates'
+    },
+    {
+      id: 'admin-customers',
       label: 'Customers', 
       icon: Users,
       description: 'Customer Database'
@@ -50,7 +62,7 @@ const AdminSidebar = ({ currentView, setCurrentView, products = [], orders = [] 
   ];
 
   return (
-    <div className="bg-white shadow-lg rounded-xl p-6 h-fit sticky top-24">
+    <div className="bg-white shadow-lg rounded-xl p-6 h-fit sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
       {/* Sidebar Header */}
       <div className="mb-8">
         <h3 className="text-xl font-bold text-gray-800 mb-2">Admin Panel</h3>

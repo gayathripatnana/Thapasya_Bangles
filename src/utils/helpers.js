@@ -113,6 +113,50 @@ export const fetchCategories = async () => {
 };
 
 /**
+ * Real-time listener for the categories collection (admin-added custom categories)
+ */
+export const subscribeToCategoryList = (callback) => {
+  const categoriesRef = collection(db, COLLECTIONS.CATEGORIES);
+  const q = query(categoriesRef, orderBy('order', 'asc'));
+
+  return onSnapshot(q, (snapshot) => {
+    const categories = [];
+    snapshot.forEach((docSnap) => {
+      categories.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    callback(categories);
+  }, (error) => {
+    console.error('Error subscribing to categories:', error);
+  });
+};
+
+/**
+ * Real-time listener for category images (shared by HomePage/ProductsPage/admin)
+ */
+export const subscribeToCategoryImages = (callback) => {
+  const docRef = doc(db, COLLECTIONS.CATEGORY_PICTURES, DOCUMENTS.IMAGES);
+
+  return onSnapshot(docRef, (docSnap) => {
+    if (!docSnap.exists()) {
+      callback({});
+      return;
+    }
+
+    const imagesData = docSnap.data().images || {};
+    const convertedImages = {};
+    Object.keys(imagesData).forEach((category) => {
+      const url = imagesData[category];
+      if (typeof url === 'string' && url) {
+        convertedImages[category] = convertGoogleDriveUrl(url);
+      }
+    });
+    callback(convertedImages);
+  }, (error) => {
+    console.error('Error subscribing to category images:', error);
+  });
+};
+
+/**
  * Fetch category images from Firebase
  */
 export const fetchCategoryImages = async () => {

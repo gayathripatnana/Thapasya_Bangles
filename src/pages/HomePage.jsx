@@ -9,6 +9,7 @@ import {
 } from '../utils/helpers';
 import CustomAlert from '../components/common/CustomAlert';
 import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
+import { mergeCategories } from '../utils/categoryConstants';
 
 // Default fallback images
 const defaultHeroImages = [
@@ -18,7 +19,7 @@ const defaultHeroImages = [
   "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=600&fit=crop"
 ];
 
-const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFromWishlist, onAddToCart, wishlistItems, cartItems, storeSettings = DEFAULT_STORE_SETTINGS }) => {
+const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFromWishlist, onAddToCart, wishlistItems, cartItems, storeSettings = DEFAULT_STORE_SETTINGS, customCategories = [], categoryImages = {} }) => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [currentFeatured, setCurrentFeatured] = useState(0);
   const [, setCurrentImage] = useState(0);
@@ -26,7 +27,6 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
   const [, setLoading] = useState(true);
   const [, setError] = useState(null);
   const [, setCategories] = useState([]);
-  const [categoryImages, setCategoryImages] = useState({});
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [selectedSizes, setSelectedSizes] = useState({});
   const [customerReviews, setCustomerReviews] = useState([]);
@@ -156,50 +156,6 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
     });
 
     return () => unsubscribe && unsubscribe();
-  }, []);
-
-  // Load category images from Firebase
-  useEffect(() => {
-    let unsubscribe;
-
-    const loadCategoryImages = async () => {
-      try {
-        const docRef = doc(db, COLLECTIONS.CATEGORY_PICTURES, DOCUMENTS.IMAGES);
-        
-        unsubscribe = onSnapshot(
-          docRef,
-          (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              const imagesData = data.images || {};
-              
-              const convertedImages = {};
-              Object.keys(imagesData).forEach(category => {
-                const url = imagesData[category];
-                if (typeof url === 'string' && url) {
-                  convertedImages[category] = convertGoogleDriveUrl(url);
-                }
-              });
-              
-              setCategoryImages(convertedImages);
-            }
-          },
-          (error) => {
-            console.error('Error loading category images:', error);
-          }
-        );
-      } catch (error) {
-        console.error('Error setting up category images listener:', error);
-      }
-    };
-
-    loadCategoryImages();
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
   }, []);
 
   // Load featured products from Firebase
@@ -361,17 +317,14 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
 
   const handleCategoryClick = (categoryId) => {
     if (setCurrentView) {
-      // Map category IDs to display names for filtering
-      const categoryMap = {
-        'all': 'all',
-        'bridal': 'Bridal Bangles',
-        'semi_bridal': 'Semi Bridal', 
-        'side': 'Side Bangles',
-        'hair_accessories': 'Hair Accessories',
-        'return_gifts': 'Return Gifts'
-      };
-      
-      setCurrentView('products', { category: categoryMap[categoryId] || categoryId });
+      if (categoryId === 'all') {
+        setCurrentView('products', { category: 'all' });
+        return;
+      }
+      // Look up the display title (what product.category actually stores) for
+      // both built-in and admin-added custom categories
+      const matchedCategory = mergeCategories(customCategories).find(cat => cat.id === categoryId);
+      setCurrentView('products', { category: matchedCategory ? matchedCategory.title : categoryId });
     }
   };
 
@@ -470,17 +423,13 @@ const handleWishlistClick = (product) => {
   }
 };
 
-const staticCategories = [
+const allCategoriesForDisplay = [
   { id: 'all', title: 'All', gradient: 'from-gray-600 to-gray-700' },
-  { id: 'bridal', title: 'Bridal Bangles', gradient: 'from-yellow-600 to-yellow-700' },
-  { id: 'semi_bridal', title: 'Semi Bridal', gradient: 'from-yellow-700 to-yellow-800' },
-  { id: 'side', title: 'Side Bangles', gradient: 'from-yellow-500 to-yellow-600' },
-  { id: 'hair_accessories', title: 'Hair Accessories', gradient: 'from-yellow-400 to-yellow-500' },
-  { id: 'return_gifts', title: 'Return Gifts', gradient: 'from-yellow-300 to-yellow-400' }
+  ...mergeCategories(customCategories)
 ];
 
-  const visibleCategories = staticCategories.filter(cat => 
-    cat.id === 'all' || categoryImages[cat.id]
+  const visibleCategories = allCategoriesForDisplay.filter(cat =>
+    cat.id === 'all' || categoryImages[cat.id] || cat.fallbackImage
   );
 
   return (

@@ -1,8 +1,7 @@
 // pages/ProductsPage.jsx
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Search, Package, SlidersHorizontal } from 'lucide-react';
-import { db, COLLECTIONS, DOCUMENTS } from '../firebase/config';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { mergeCategories } from '../utils/categoryConstants';
 // Lazy load ProductCard for better performance
 const ProductCard = lazy(() => import('../components/product/ProductCard'));
 
@@ -38,13 +37,12 @@ const convertGoogleDriveUrl = (url) => {
   }
 };
 
-const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems, onRemoveFromWishlist, cartItems, initialCategory = 'all', setCurrentView }) => {
+const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, wishlistItems, onRemoveFromWishlist, cartItems, initialCategory = 'all', setCurrentView, customCategories = [], categoryImages = {} }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [categoryImages, setCategoryImages] = useState({});
 
       useEffect(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -67,45 +65,6 @@ const ProductsPage = ({ products, onProductClick, onAddToWishlist, onAddToCart, 
       setSelectedCategory('all');
     }
   }, [initialCategory]);
-
-  // Load category images from Firebase
-useEffect(() => {
-  const loadCategoryImages = async () => {
-    try {
-      
-      const docRef = doc(db, COLLECTIONS.CATEGORY_PICTURES, DOCUMENTS.IMAGES);
-      
-      const unsubscribe = onSnapshot(
-        docRef,
-        (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const imagesData = data.images || {};
-            
-            const convertedImages = {};
-            Object.keys(imagesData).forEach(category => {
-              const url = imagesData[category];
-              if (typeof url === 'string' && url) {
-                convertedImages[category] = convertGoogleDriveUrl(url);
-              }
-            });
-            
-            setCategoryImages(convertedImages);
-          }
-        },
-        (error) => {
-          console.error('Error loading category images:', error);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (error) {
-      console.error('Error setting up category images listener:', error);
-    }
-  };
-
-  loadCategoryImages();
-}, []);
 
   // Memoized filtered products for performance
   const filteredProducts = useMemo(() => {
@@ -185,41 +144,26 @@ useEffect(() => {
     return cartItems && cartItems.some(item => item.id === productId);
   }, [cartItems]);
 
-  // Helper function to get correct category image
-const getCategoryHeroImage = (selectedCategory, categoryImages) => {
-  // Map display categories to Firebase category IDs
-  const categoryMap = {
-    'all': 'all',
-    'Bridal Bangles': 'bridal',
-    'Side Bangles': 'side',
-    'Hair Accessories': 'hair_accessories', 
-    'Semi Bridal': 'semi_bridal',
-    'Return Gifts': 'return_gifts'
-  };
+  // Static + admin-added categories, merged
+  const categoryOptions = useMemo(() => [
+    { id: 'all', title: 'All' },
+    ...mergeCategories(customCategories)
+  ], [customCategories]);
 
-  const categoryId = categoryMap[selectedCategory];
-  
-  // Return bridal image for both 'all' and 'bridal' categories
-  if (selectedCategory === 'all' || selectedCategory === 'Bridal Bangles') {
-    return categoryImages['bridal'] || categoryImages['all'];
-  }
-  
-  return categoryImages[categoryId];
-};
+  // Helper function to get correct category image
+  const getCategoryHeroImage = (selectedCategory, categoryImages) => {
+    // Return bridal image for both 'all' and 'bridal' categories
+    if (selectedCategory === 'all' || selectedCategory === 'Bridal Bangles') {
+      return categoryImages['bridal'] || categoryImages['all'];
+    }
+
+    const matchedCategory = categoryOptions.find(cat => cat.title === selectedCategory);
+    return matchedCategory ? categoryImages[matchedCategory.id] : undefined;
+  };
 
   const handleNavigateToCart = useCallback(() => {
     setCurrentView('cart');
   }, [setCurrentView]);
-
-  // Static category options
-  const categoryOptions = [
-    { id: 'all', title: 'All' },
-    { id: 'Bridal Bangles', title: 'Bridal Bangles' },
-    { id: 'Side Bangles', title: 'Side Bangles' },
-    { id: 'Hair Accessories', title: 'Hair Accessories' },
-    { id: 'Semi Bridal', title: 'Semi Bridal' },
-    { id: 'Return Gifts', title: 'Return Gifts' }
-  ];
 
   // ProductCard loading skeleton
   const ProductCardSkeleton = () => (

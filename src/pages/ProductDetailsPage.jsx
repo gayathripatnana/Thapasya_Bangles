@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Package, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
 import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
+import { handleImageFallback } from '../utils/imagePlaceholder';
 
 // Add the Google Drive URL conversion function
 const convertGoogleDriveUrl = (url) => {
@@ -325,7 +326,7 @@ Looking forward to your response! 🙏`;
                 loading="lazy"
                 onError={(e) => {
                   console.error('Failed to load image:', productImages[selectedImage]);
-                  e.target.src = 'https://via.placeholder.com/600x600/f3f4f6/9ca3af?text=Image+Not+Found';
+                  handleImageFallback(e, 600, 'Image Not Found');
                 }}
               />
               
@@ -394,7 +395,7 @@ Looking forward to your response! 🙏`;
                       loading="lazy"
                       onError={(e) => {
                         console.error('Failed to load thumbnail:', image);
-                        e.target.src = 'https://via.placeholder.com/150x150/f3f4f6/9ca3af?text=Image+Error';
+                        handleImageFallback(e, 150, 'Image Error');
                       }}
                     />
                   </button>
@@ -648,7 +649,7 @@ Looking forward to your response! 🙏`;
                       loading="lazy"
                       onError={(e) => {
                         console.error('Failed to load related product image:', relatedProduct.image);
-                        e.target.src = 'https://via.placeholder.com/300x300/f3f4f6/9ca3af?text=Image+Error';
+                        handleImageFallback(e, 300, 'Image Error');
                       }}
                     />
                   </div>

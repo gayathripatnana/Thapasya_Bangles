@@ -44,6 +44,7 @@ export const DOCUMENTS = {
   IMAGES: 'images',
   PRODUCTS: 'products',
   STORE_INFO: 'store_info',
+  SHIPPING_RATES: 'shipping_rates',
 };
 
 export default app;

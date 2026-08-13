@@ -1,11 +1,15 @@
 // components/product/ProductForm.jsx
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, X, Star, Plus } from 'lucide-react';
+import { BUILT_IN_CATEGORIES } from '../../utils/categoryConstants';
 
-const ProductForm = ({ product, onSubmit, onCancel }) => {
+const DEFAULT_CATEGORY_OPTIONS = BUILT_IN_CATEGORIES.map(cat => cat.title);
+
+const ProductForm = ({ product, onSubmit, onCancel, categoryOptions = DEFAULT_CATEGORY_OPTIONS }) => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
+    weight: '',
     image: '',
     images: [],
     description: '',
@@ -83,6 +87,7 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
         ...product,
         isFeatured: product.isFeatured || false,
         price: product.price.toString(),
+        weight: product.weight ? product.weight.toString() : '',
         images: product.images || [product.image],
         sizes: product.sizes || ['2.0', '2.2', '2.4', '2.6', '2.8', '2.10', 'Children'],
         sizeChart: product.sizeChart || {
@@ -166,6 +171,7 @@ const validateForm = () => {
         ...formData,
         price: parseFloat(formData.price),
         rating: parseFloat(formData.rating),
+        weight: formData.weight ? parseFloat(formData.weight) : null,
         image: formData.images[0] // Set first image as main image for backward compatibility
       };
       
@@ -175,6 +181,7 @@ const validateForm = () => {
         setFormData({
           name: '',
           price: '',
+          weight: '',
           image: '',
           images: [],
           description: '',
@@ -294,6 +301,24 @@ const validateForm = () => {
               <p className="text-red-500 text-sm mt-1">{errors.price}</p>
             )}
           </div>
+
+          {/* Weight */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Weight (kg)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.weight}
+              onChange={(e) => handleInputChange('weight', e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
+              placeholder="0.5"
+              disabled={isSubmitting}
+            />
+            <p className="text-xs text-gray-500 mt-1">Used to calculate shipping. Defaults to 0.5kg if left blank.</p>
+          </div>
           
           {/* Category */}
           <div>
@@ -311,11 +336,9 @@ const validateForm = () => {
               disabled={isSubmitting}
             >
               <option value="">Select Category</option>
-              <option value="Bridal Bangles">Bridal Bangles</option>
-              <option value="Side Bangles">Side Bangles</option>
-              <option value="Hair Accessories">Hair Accessories</option>
-              <option value="Semi Bridal">Semi Bridal</option>
-              <option value="Return Gifts">Return Gifts</option>
+              {categoryOptions.map(title => (
+                <option key={title} value={title}>{title}</option>
+              ))}
             </select>
             {errors.category && (
               <p className="text-red-500 text-sm mt-1">{errors.category}</p>
