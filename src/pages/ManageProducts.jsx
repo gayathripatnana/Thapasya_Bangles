@@ -212,12 +212,13 @@ const filteredProducts = useMemo(() => {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <AdminSidebar 
-                  currentView="admin-products" 
+                <AdminSidebar
+                  currentView="admin-products"
                   setCurrentView={(view) => {
                     setCurrentView(view);
                     setShowMobileSidebar(false);
-                  }} 
+                  }}
+                  products={products}
                 />
               </div>
             </div>
@@ -225,7 +226,7 @@ const filteredProducts = useMemo(() => {
 
           {/* Desktop Sidebar */}
           <div className="hidden lg:block lg:col-span-1">
-            <AdminSidebar currentView="admin-products" setCurrentView={setCurrentView} />
+            <AdminSidebar currentView="admin-products" setCurrentView={setCurrentView} products={products} />
           </div>
 
           {/* Main Content */}

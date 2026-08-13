@@ -8,6 +8,7 @@ import {
   subscribeToCategoriesUpdates
 } from '../utils/helpers';
 import CustomAlert from '../components/common/CustomAlert';
+import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
 
 // Default fallback images
 const defaultHeroImages = [
@@ -17,7 +18,7 @@ const defaultHeroImages = [
   "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=600&fit=crop"
 ];
 
-const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFromWishlist, onAddToCart, wishlistItems, cartItems }) => {
+const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFromWishlist, onAddToCart, wishlistItems, cartItems, storeSettings = DEFAULT_STORE_SETTINGS }) => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [currentFeatured, setCurrentFeatured] = useState(0);
   const [, setCurrentImage] = useState(0);
@@ -351,10 +352,10 @@ const HomePage = ({ setCurrentView, onProductClick, onAddToWishlist, onRemoveFro
     return () => clearInterval(testimonialTimer);
   }, [customerReviews.length]);
 
-  const whatsappNumber = "+918074086883";
   const whatsappMessage = "Hi! I'm interested in your bangles collection. Can you help me?";
 
   const handleWhatsAppOrder = () => {
+    const whatsappNumber = (storeSettings.whatsappNumber || DEFAULT_STORE_SETTINGS.whatsappNumber).replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
   };
 

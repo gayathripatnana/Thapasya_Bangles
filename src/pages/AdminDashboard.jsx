@@ -15,8 +15,16 @@ import {
   X
 } from 'lucide-react';
 import AdminSidebar from '../components/admin/AdminSidebar';
+import { getOrderDisplayNumber } from '../utils/orderHelpers';
 
-const AdminDashboard = ({ products, orders, setCurrentView }) => {
+const getOrderItemsSummary = (order) => {
+  const items = order.items || [];
+  if (items.length === 0) return '—';
+  const firstName = items[0].name || 'Item';
+  return items.length > 1 ? `${firstName} +${items.length - 1} more` : firstName;
+};
+
+const AdminDashboard = ({ products, orders, customers = [], setCurrentView }) => {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   // Calculate statistics
@@ -28,14 +36,14 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
   const processingOrders = orders.filter(o => o.status === 'Processing').length;
   const shippedOrders = orders.filter(o => o.status === 'Shipped').length;
   const deliveredOrders = orders.filter(o => o.status === 'Delivered').length;
-  
+
   // Revenue calculation
   const totalRevenue = orders
     .filter(o => o.status === 'Delivered')
-    .reduce((sum, order) => sum + order.amount, 0);
+    .reduce((sum, order) => sum + (order.total || 0), 0);
 
   // Recent orders
-  const recentOrders = orders
+  const recentOrders = [...orders]
     .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate))
     .slice(0, 5);
 
@@ -46,7 +54,6 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
       value: totalProducts,
       icon: <Package className="w-6 h-6 sm:w-8 sm:h-8" />,
       color: 'bg-blue-500',
-      trend: '+12%',
       subtitle: `${inStockProducts} in stock`
     },
     {
@@ -54,24 +61,21 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
       value: totalOrders,
       icon: <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />,
       color: 'bg-green-500',
-      trend: '+23%',
-      subtitle: 'This month'
+      subtitle: `${processingOrders} processing`
     },
     {
       title: 'Revenue',
       value: `₹${totalRevenue.toLocaleString()}`,
       icon: <IndianRupee className="w-6 h-6 sm:w-8 sm:h-8" />,
       color: 'bg-purple-500',
-      trend: '+18%',
       subtitle: 'Completed orders'
     },
     {
       title: 'Customers',
-      value: orders.length,
+      value: customers.length,
       icon: <Users className="w-6 h-6 sm:w-8 sm:h-8" />,
       color: 'bg-yellow-500',
-      trend: '+8%',
-      subtitle: 'Active customers'
+      subtitle: 'Registered customers'
     }
   ];
 
@@ -121,12 +125,14 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <AdminSidebar 
-                  currentView="admin-dashboard" 
+                <AdminSidebar
+                  currentView="admin-dashboard"
                   setCurrentView={(view) => {
                     setCurrentView(view);
                     setShowMobileSidebar(false);
-                  }} 
+                  }}
+                  products={products}
+                  orders={orders}
                 />
               </div>
             </div>
@@ -134,7 +140,7 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
 
           {/* Desktop Sidebar */}
           <div className="hidden lg:block lg:col-span-1">
-            <AdminSidebar currentView="admin-dashboard" setCurrentView={setCurrentView} />
+            <AdminSidebar currentView="admin-dashboard" setCurrentView={setCurrentView} products={products} orders={orders} />
           </div>
 
           {/* Main Content */}
@@ -152,9 +158,6 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
                   <div className="flex items-center justify-between mb-2 sm:mb-4">
                     <div className={`${card.color} text-white p-2 sm:p-3 rounded-lg`}>
                       {card.icon}
-                    </div>
-                    <div className="text-green-600 text-xs sm:text-sm font-medium">
-                      {card.trend}
                     </div>
                   </div>
                   <h3 className="text-lg sm:text-2xl font-bold text-gray-800 mb-1">{card.value}</h3>
@@ -269,17 +272,17 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
                 {recentOrders.map(order => (
                   <div key={order.id} className="border border-gray-200 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium">#{order.id.toString().padStart(4, '0')}</div>
+                      <div className="font-medium">#{getOrderDisplayNumber(order.id)}</div>
                       <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                         {getStatusIcon(order.status)}
                         <span>{order.status}</span>
                       </span>
                     </div>
                     <div className="text-sm text-gray-600 mb-1">Customer: {order.customerName}</div>
-                    <div className="text-sm text-gray-600 mb-1">Product: {order.productName}</div>
+                    <div className="text-sm text-gray-600 mb-1">Items: {getOrderItemsSummary(order)}</div>
                     <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-500">{order.orderDate}</div>
-                      <div className="font-semibold text-yellow-600">₹{order.amount.toLocaleString()}</div>
+                      <div className="text-sm text-gray-500">{new Date(order.orderDate).toLocaleDateString()}</div>
+                      <div className="font-semibold text-yellow-600">₹{(order.total || 0).toLocaleString()}</div>
                     </div>
                   </div>
                 ))}
@@ -302,18 +305,18 @@ const AdminDashboard = ({ products, orders, setCurrentView }) => {
                       <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4">
                           <div>
-                            <div className="font-medium text-sm">#{order.id.toString().padStart(4, '0')}</div>
-                            <div className="text-xs text-gray-500">{order.orderDate}</div>
+                            <div className="font-medium text-sm">#{getOrderDisplayNumber(order.id)}</div>
+                            <div className="text-xs text-gray-500">{new Date(order.orderDate).toLocaleDateString()}</div>
                           </div>
                         </td>
                         <td className="py-3 px-4">
                           <div className="font-medium text-sm">{order.customerName}</div>
                         </td>
                         <td className="py-3 px-4">
-                          <div className="text-sm">{order.productName}</div>
+                          <div className="text-sm">{getOrderItemsSummary(order)}</div>
                         </td>
                         <td className="py-3 px-4">
-                          <div className="font-semibold text-sm">₹{order.amount.toLocaleString()}</div>
+                          <div className="font-semibold text-sm">₹{(order.total || 0).toLocaleString()}</div>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>

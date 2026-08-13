@@ -3,6 +3,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Truck, Shield, RotateCcw, Star, Phone, User, Ruler, AlertCircle, CheckCircle } from 'lucide-react';
 import { proceedToWhatsAppCheckout } from '../utils/whatsappCheckout';
 import { getProductsByCategory } from '../utils/helpers';
+import { createOrder } from '../utils/orderHelpers';
+import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
+import { EMPTY_ADDRESS, normalizeAddress, isAddressComplete } from '../utils/addressHelpers';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
@@ -38,14 +41,14 @@ const convertGoogleDriveUrl = (url) => {
   }
 };
 
-const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize, currentUserId }) => {
+const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize, currentUserId, storeSettings = DEFAULT_STORE_SETTINGS }) => {
   
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     phone: '',
     email: '',
-    address: ''
+    address: { ...EMPTY_ADDRESS }
   });
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [showSizeModal, setShowSizeModal] = useState(null);
@@ -135,11 +138,11 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
               name: userData.name || '',
               phone: userData.phone || '',
               email: userData.email || '',
-              address: userData.address || '' // ✅ Load saved address
+              address: normalizeAddress(userData.address) // ✅ Load saved address
             });
-            
+
             // If user has all required data, mark as saved
-            if (userData.phone && userData.address) {
+            if (userData.phone && isAddressComplete(userData.address)) {
               setDataSaved(true);
             }
           } else {
@@ -149,7 +152,7 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
               name: '',
               phone: '',
               email: '',
-              address: '', // ✅ Initialize empty address
+              address: { ...EMPTY_ADDRESS }, // ✅ Initialize empty address
               createdAt: new Date()
             });
           }
@@ -175,6 +178,16 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     }
   }, [dataSaved]);
 
+  const handleAddressChange = useCallback((field, value) => {
+    setCustomerInfo(prev => ({
+      ...prev,
+      address: { ...prev.address, [field]: value }
+    }));
+    if (dataSaved) {
+      setDataSaved(false);
+    }
+  }, [dataSaved]);
+
   // Save user data to database
   const saveUserData = async () => {
     if (!currentUserId) {
@@ -188,8 +201,8 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
       return false;
     }
 
-    if (!customerInfo.address) {
-      setError('Delivery address is required');
+    if (!isAddressComplete(customerInfo.address)) {
+      setError('Please complete your delivery address, including a valid 6-digit pincode');
       return false;
     }
 
@@ -259,18 +272,43 @@ const handleFinalCheckout = async () => {
     total
   };
 
-  // ✅ Make sure customerInfo includes the address
+  // ✅ Make sure customerInfo includes the structured address
   const checkoutData = {
     ...customerInfo,
-    address: customerInfo.address || 'Address not provided'
+    address: normalizeAddress(customerInfo.address)
   };
 
+  // Persist the order to Firestore so it shows up in the admin dashboard
+  try {
+    await createOrder({
+      customerId: currentUserId,
+      customerName: checkoutData.name || '',
+      customerPhone: checkoutData.phone || '',
+      customerEmail: checkoutData.email || '',
+      address: checkoutData.address,
+      items: cartItems.map(item => ({
+        productId: item.id,
+        name: item.name,
+        category: item.category,
+        image: item.image,
+        selectedSize: item.selectedSize || null,
+        price: item.price,
+        quantity: item.quantity
+      })),
+      subtotal,
+      deliveryCharges,
+      total
+    });
+  } catch (error) {
+    console.error('Error saving order, continuing with WhatsApp checkout:', error);
+  }
+
   // Proceed with WhatsApp checkout
-  proceedToWhatsAppCheckout(cartItems, orderSummary, checkoutData);
-  
+  proceedToWhatsAppCheckout(cartItems, orderSummary, checkoutData, storeSettings.whatsappNumber);
+
   // Clear cart after successful checkout
   await clearCartAfterCheckout();
-  
+
   // Close confirmation modal
   setShowCheckoutConfirmation(false);
 };
@@ -302,19 +340,19 @@ const handleFinalCheckout = async () => {
         return;
       }
       
-      // Check if user has address saved
-      if (!userData.address) {
+      // Check if user has a complete address saved
+      if (!isAddressComplete(userData.address)) {
         setShowCustomerForm(true);
-        setError('Please provide your delivery address');
+        setError('Please provide your complete delivery address');
         return;
       }
-      
+
       // Use database data for quick checkout (including saved address)
       const quickCheckoutData = {
         name: userData.name || '',
         phone: userData.phone,
         email: userData.email || '',
-        address: userData.address // ✅ Use saved address
+        address: normalizeAddress(userData.address) // ✅ Use saved address
       };
       
       // Also update local state to show the saved address
@@ -686,22 +724,81 @@ const handleFinalCheckout = async () => {
                         onChange={(e) => handleCustomerInfoChange('email', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
                       />
-                      <textarea
-                        placeholder="Delivery Address *"
-                        value={customerInfo.address}
-                        onChange={(e) => handleCustomerInfoChange('address', e.target.value)}
-                        rows="3"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm resize-none"
-                        required
-                      />
+                      <div className="pt-2 border-t border-gray-200">
+                        <h5 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Delivery Address *</h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Door / House No. *"
+                            value={customerInfo.address.doorNumber}
+                            onChange={(e) => handleAddressChange('doorNumber', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Apartment/Building (optional)"
+                            value={customerInfo.address.apartment}
+                            onChange={(e) => handleAddressChange('apartment', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Street / Area *"
+                          value={customerInfo.address.street}
+                          onChange={(e) => handleAddressChange('street', e.target.value)}
+                          className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Landmark (optional)"
+                          value={customerInfo.address.landmark}
+                          onChange={(e) => handleAddressChange('landmark', e.target.value)}
+                          className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                        />
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <input
+                            type="text"
+                            placeholder="Village / Town *"
+                            value={customerInfo.address.village}
+                            onChange={(e) => handleAddressChange('village', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="District *"
+                            value={customerInfo.address.district}
+                            onChange={(e) => handleAddressChange('district', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <input
+                            type="text"
+                            placeholder="State *"
+                            value={customerInfo.address.state}
+                            onChange={(e) => handleAddressChange('state', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                          />
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            placeholder="Pincode *"
+                            value={customerInfo.address.pincode}
+                            onChange={(e) => handleAddressChange('pincode', e.target.value.replace(/[^0-9]/g, ''))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    
+
                     {/* Save Data Button */}
                     <button
                       onClick={handleSaveAndContinue}
-                      disabled={isSavingData || !customerInfo.phone || !customerInfo.address}
+                      disabled={isSavingData || !customerInfo.phone || !isAddressComplete(customerInfo.address)}
                       className={`w-full mt-4 py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm ${
-                        isSavingData || !customerInfo.phone || !customerInfo.address
+                        isSavingData || !customerInfo.phone || !isAddressComplete(customerInfo.address)
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-green-500 hover:bg-green-600 text-white transform hover:-translate-y-0.5 hover:shadow-lg'
                       }`}

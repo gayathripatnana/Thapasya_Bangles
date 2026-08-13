@@ -8,19 +8,21 @@ import {
   LogOut,
   ShoppingCart,
   Heart,
+  Receipt,
   Menu,
   X
 } from 'lucide-react';
 import { convertGoogleDriveUrl } from '../../utils/helpers';
-const Header = ({ 
-  currentView, 
-  setCurrentView, 
-  isAdmin, 
+const Header = ({
+  currentView,
+  setCurrentView,
+  isAdmin,
   isLoggedIn,
   user,
-  handleLogout, 
-  cartItemsCount = 0, 
-  wishlistItemsCount = 0 
+  handleLogout,
+  cartItemsCount = 0,
+  wishlistItemsCount = 0,
+  myOrdersCount = 0
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -122,9 +124,18 @@ const Header = ({
                 >
                   Cart
                 </NavButton>
+
+                <NavButton
+                  onClick={() => handleNavigation('orders')}
+                  isActive={currentView === 'orders'}
+                  icon={Receipt}
+                  badge={myOrdersCount > 0 ? myOrdersCount : null}
+                >
+                  My Orders
+                </NavButton>
               </>
             )}
-            
+
             {isLoggedIn ? (
               <div className="flex items-center space-x-2 ml-2">
                 {isAdmin && (
@@ -330,9 +341,19 @@ const Header = ({
                       >
                         Shopping Cart
                       </NavButton>
+
+                      <NavButton
+                        onClick={() => handleNavigation('orders')}
+                        isActive={currentView === 'orders'}
+                        icon={Receipt}
+                        badge={myOrdersCount > 0 ? myOrdersCount : null}
+                        className="w-full justify-start py-3"
+                      >
+                        My Orders
+                      </NavButton>
                     </>
                   )}
-                  
+
                   <div className="pt-4 mt-4 border-t border-white/20">
                     <button
                       onClick={() => {
@@ -366,6 +387,15 @@ const Header = ({
                     className="w-full justify-start py-3"
                   >
                     Shopping Cart
+                  </NavButton>
+
+                  <NavButton
+                    onClick={() => handleNavigation('orders')}
+                    isActive={currentView === 'orders'}
+                    icon={Receipt}
+                    className="w-full justify-start py-3"
+                  >
+                    My Orders
                   </NavButton>
 
                   <div className="pt-4 mt-4 border-t border-white/20">

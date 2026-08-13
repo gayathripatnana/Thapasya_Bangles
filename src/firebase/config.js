@@ -35,6 +35,7 @@ export const COLLECTIONS = {
   FEATURED_PRODUCTS: 'featured_products',
   USERS: 'users',
   REVIEWS: 'reviews', // ← ADD THIS if you have reviews collection
+  SETTINGS: 'settings',
 };
 
 // Document IDs - centralized configuration
@@ -42,6 +43,7 @@ export const DOCUMENTS = {
   CAROUSEL_PICTURES: 'carousel_pictures',
   IMAGES: 'images',
   PRODUCTS: 'products',
+  STORE_INFO: 'store_info',
 };
 
 export default app;

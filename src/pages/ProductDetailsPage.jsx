@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Package, Heart, ShoppingCart, Star, Phone, Share2, Minus, Plus, Truck, Shield, CheckCircle, AlertCircle, Ruler } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
+import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
 
 // Add the Google Drive URL conversion function
 const convertGoogleDriveUrl = (url) => {
@@ -47,7 +48,8 @@ const ProductDetailsPage = ({
   cartItems,
   relatedProducts = [],
   onProductClick,
-  navigateToCart
+  navigateToCart,
+  storeSettings = DEFAULT_STORE_SETTINGS
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -221,7 +223,7 @@ const handleCartClick = () => {
 };
 
 const orderProductViaWhatsApp = (product, quantity) => {
-  const whatsappNumber = "+918074086883";
+  const whatsappNumber = (storeSettings.whatsappNumber || DEFAULT_STORE_SETTINGS.whatsappNumber).replace(/[^0-9]/g, '');
   const message = `🛍️ *Hi! I'm interested in this PRODUCT* 🛍️
 
 *${product.name}*

@@ -10,8 +10,12 @@ import RegisterPage from './pages/RegisterPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageProducts from './pages/ManageProducts';
 import ManageOrders from './pages/ManageOrders';
+import ManageCustomers from './pages/ManageCustomers';
+import AdminReports from './pages/AdminReports';
+import AdminSettings from './pages/AdminSettings';
 import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
+import MyOrdersPage from './pages/MyOrdersPage';
 import CustomAlert from './components/common/CustomAlert';
 import {
   addProduct,
@@ -21,6 +25,12 @@ import {
   addToFeaturedProducts,
   removeFromFeaturedProducts
 } from './utils/helpers';
+import {
+  subscribeToOrdersUpdates,
+  updateOrderStatus as updateOrderStatusInFirestore
+} from './utils/orderHelpers';
+import { subscribeToCustomersUpdates } from './utils/customerHelpers';
+import { subscribeToStoreSettings, updateStoreSettings, DEFAULT_STORE_SETTINGS } from './utils/settingsHelpers';
 
 // Firebase Auth imports
 import { 
@@ -56,6 +66,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [storeSettings, setStoreSettings] = useState(DEFAULT_STORE_SETTINGS);
   const [cartItems, setCartItems] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +136,33 @@ function App() {
     return () => unsubscribe && unsubscribe();
   }, []);
 
+  // Load orders from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToOrdersUpdates((fetchedOrders) => {
+      setOrders(fetchedOrders);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
+  // Load customers from Firebase (admin use)
+  useEffect(() => {
+    const unsubscribe = subscribeToCustomersUpdates((fetchedCustomers) => {
+      setCustomers(fetchedCustomers);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
+  // Load store settings from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToStoreSettings((settings) => {
+      setStoreSettings(settings);
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
   // Add this useEffect in App.js
 useEffect(() => {
   const handleBackButton = () => {
@@ -135,6 +174,7 @@ useEffect(() => {
         break;
       case 'cart':
       case 'wishlist':
+      case 'orders':
         setCurrentView('products');
         break;
       case 'register':
@@ -142,6 +182,9 @@ useEffect(() => {
         break;
       case 'admin-products':
       case 'admin-orders':
+      case 'admin-customers':
+      case 'admin-reports':
+      case 'admin-settings':
         setCurrentView('admin-dashboard');
         break;
       case 'products':
@@ -368,10 +411,25 @@ useEffect(() => {
     }
   };
 
-  const updateOrderStatus = (orderId, status) => {
-    setOrders(orders.map(order => 
-      order.id === orderId ? { ...order, status } : order
-    ));
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      await updateOrderStatusInFirestore(orderId, status);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      showAlert('Error', 'Error updating order status. Please try again.', 'error');
+    }
+  };
+
+  const handleUpdateStoreSettings = async (settingsData) => {
+    try {
+      await updateStoreSettings(settingsData);
+      showAlert('Success', 'Store settings updated successfully.', 'success');
+      return true;
+    } catch (error) {
+      console.error('Error updating store settings:', error);
+      showAlert('Error', 'Error updating store settings. Please try again.', 'error');
+      return false;
+    }
   };
 
   const handleAddToCart = async (product) => {
@@ -566,7 +624,7 @@ useEffect(() => {
     
     switch (currentView) {
       case 'home':
-        return <HomePage 
+        return <HomePage
           setCurrentView={handleViewChange}
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
@@ -574,6 +632,7 @@ useEffect(() => {
           onAddToCart={handleAddToCart}
           wishlistItems={wishlistItems}
           cartItems={cartItems}
+          storeSettings={storeSettings}
         />;
       case 'products':
         return <ProductsPage 
@@ -600,6 +659,7 @@ useEffect(() => {
           cartItems={cartItems}
           navigateToCart={() => setCurrentView('cart')}
           onProductClick={handleProductClick}
+          storeSettings={storeSettings}
         />;
       case 'login':
         return <LoginPage 
@@ -621,9 +681,10 @@ useEffect(() => {
           onAddToCart={handleAddToCart}
           onUpdateCartSize={handleUpdateCartSize}
           currentUserId={user?.uid}
+          storeSettings={storeSettings}
         />;
       case 'wishlist':
-        return <WishlistPage 
+        return <WishlistPage
           wishlistItems={wishlistItems}
           onRemoveFromWishlist={handleRemoveFromWishlist}
           onAddToCart={handleMoveToCart}
@@ -632,15 +693,28 @@ useEffect(() => {
           cartItems={cartItems}
           onClearWishlist={handleClearWishlist}
         />;
+      case 'orders':
+        return isLoggedIn ? (
+          <MyOrdersPage
+            orders={orders}
+            currentUserId={user?.uid}
+            onBack={() => setCurrentView('products')}
+            onProductClick={handleProductClick}
+          />
+        ) : <LoginPage
+          onLogin={handleLogin}
+          onSwitchToRegister={switchToRegister}
+        />;
       case 'admin-dashboard':
         return isAdmin ? (
-          <AdminDashboard 
-            products={products} 
-            orders={orders} 
+          <AdminDashboard
+            products={products}
+            orders={orders}
+            customers={customers}
             setCurrentView={setCurrentView}
           />
-        ) : <HomePage 
-          setCurrentView={setCurrentView} 
+        ) : <HomePage
+          setCurrentView={setCurrentView}
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
           onAddToCart={handleAddToCart}
@@ -671,8 +745,54 @@ useEffect(() => {
             onStatusUpdate={updateOrderStatus}
             setCurrentView={setCurrentView}
           />
-        ) : <HomePage 
-          setCurrentView={setCurrentView} 
+        ) : <HomePage
+          setCurrentView={setCurrentView}
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
+      case 'admin-customers':
+        return isAdmin ? (
+          <ManageCustomers
+            customers={customers}
+            orders={orders}
+            setCurrentView={setCurrentView}
+          />
+        ) : <HomePage
+          setCurrentView={setCurrentView}
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
+      case 'admin-reports':
+        return isAdmin ? (
+          <AdminReports
+            products={products}
+            orders={orders}
+            customers={customers}
+            setCurrentView={setCurrentView}
+          />
+        ) : <HomePage
+          setCurrentView={setCurrentView}
+          onProductClick={handleProductClick}
+          onAddToWishlist={handleAddToWishlist}
+          onAddToCart={handleAddToCart}
+          wishlistItems={wishlistItems}
+          cartItems={cartItems}
+        />;
+      case 'admin-settings':
+        return isAdmin ? (
+          <AdminSettings
+            storeSettings={storeSettings}
+            onUpdateSettings={handleUpdateStoreSettings}
+            setCurrentView={setCurrentView}
+          />
+        ) : <HomePage
+          setCurrentView={setCurrentView}
           onProductClick={handleProductClick}
           onAddToWishlist={handleAddToWishlist}
           onAddToCart={handleAddToCart}
@@ -702,6 +822,7 @@ useEffect(() => {
         handleLogout={handleLogout}
         cartItemsCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
         wishlistItemsCount={wishlistItems.length}
+        myOrdersCount={user?.uid ? orders.filter(o => o.customerId === user.uid).length : 0}
       />
       <main className="min-h-screen">
         {renderCurrentView()}
@@ -713,7 +834,7 @@ useEffect(() => {
         message={alertState.message}
         type={alertState.type}
       />
-      <Footer />
+      <Footer settings={storeSettings} />
     </div>
   );
 }

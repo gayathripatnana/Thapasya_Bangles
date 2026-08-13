@@ -1,8 +1,9 @@
 // components/common/Footer.jsx
 import React from 'react';
 import { ShoppingBag, Phone, Mail, MapPin } from 'lucide-react';
+import { DEFAULT_STORE_SETTINGS } from '../../utils/settingsHelpers';
 
-const Footer = () => {
+const Footer = ({ settings = DEFAULT_STORE_SETTINGS }) => {
   return (
     <footer className="bg-gray-800 text-white py-12">
       <div className="container mx-auto px-4">
@@ -42,15 +43,15 @@ const Footer = () => {
             <div className="space-y-3 text-gray-300">
               <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4" />
-                <span>+91 80740 86883</span>
+                <span>{settings.contactPhone}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4" />
-                <span>thapasyabangles@gmail.com</span>
+                <span>{settings.contactEmail}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4" />
-                <span>Mangalagiri, Andhra Pradesh</span>
+                <span>{settings.address}</span>
               </div>
             </div>
           </div>

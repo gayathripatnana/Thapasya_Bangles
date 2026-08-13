@@ -2,7 +2,14 @@
 import React from 'react';
 import { BarChart3, Package, Truck, Settings, Users, FileText } from 'lucide-react';
 
-const AdminSidebar = ({ currentView, setCurrentView }) => {
+const AdminSidebar = ({ currentView, setCurrentView, products = [], orders = [] }) => {
+  const activeProducts = products.filter(p => p.inStock !== false).length;
+  const pendingOrders = orders.filter(o => o.status === 'Processing').length;
+  const todayDateString = new Date().toDateString();
+  const todaysRevenue = orders
+    .filter(o => o.orderDate && new Date(o.orderDate).toDateString() === todayDateString)
+    .reduce((sum, o) => sum + (o.total || 0), 0);
+
   const menuItems = [
     { 
       id: 'admin-dashboard', 
@@ -60,7 +67,7 @@ const AdminSidebar = ({ currentView, setCurrentView }) => {
             <button
               key={item.id}
               onClick={() => setCurrentView(item.id)}
-              className={`w-full text-left p-4 rounded-lg transition-all duration-200 group ${
+              className={`relative w-full text-left p-4 rounded-lg transition-all duration-200 group ${
                 isActive
                   ? 'bg-gradient-to-r from-yellow-500 to-gray-600 text-white shadow-lg transform scale-105'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
@@ -105,15 +112,15 @@ const AdminSidebar = ({ currentView, setCurrentView }) => {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">Active Products</span>
-            <span className="font-semibold text-gray-800">24</span>
+            <span className="font-semibold text-gray-800">{activeProducts}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Pending Orders</span>
-            <span className="font-semibold text-orange-600">3</span>
+            <span className="font-semibold text-orange-600">{pendingOrders}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Today's Revenue</span>
-            <span className="font-semibold text-green-600">₹8,500</span>
+            <span className="font-semibold text-green-600">₹{todaysRevenue.toLocaleString()}</span>
           </div>
         </div>
       </div>

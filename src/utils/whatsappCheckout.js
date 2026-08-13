@@ -1,4 +1,6 @@
 // utils/whatsappCheckout.js - Enhanced WhatsApp checkout functionality
+import { formatAddress } from './addressHelpers';
+
 export const WHATSAPP_NUMBER = '918074086883';
 
 /**
@@ -19,7 +21,7 @@ export const createCartCheckoutMessage = (cartItems, orderSummary, customerInfo 
 
   let message = `🛒 *Hi! I want to place an ORDER* 🛒
 📅 Date: ${currentDate}
-${customerInfo ? `\n👤 My Name: ${customerInfo.name || 'Not provided'}\n📱 My Phone: ${customerInfo.phone || 'Not provided'}\n📧 My Email: ${customerInfo.email || 'Not provided'}\n📍 My Address: ${customerInfo.address || 'Not provided'}\n` : ''}
+${customerInfo ? `\n👤 My Name: ${customerInfo.name || 'Not provided'}\n📱 My Phone: ${customerInfo.phone || 'Not provided'}\n📧 My Email: ${customerInfo.email || 'Not provided'}\n📍 My Address:\n${formatAddress(customerInfo.address)}\n` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📦 *PRODUCTS I WANT TO ORDER* (${itemCount} item${itemCount !== 1 ? 's' : ''})
@@ -86,15 +88,16 @@ export const createWhatsAppURL = (phoneNumber, message) => {
  * @param {Array} cartItems - Cart items
  * @param {Object} orderSummary - Order totals
  * @param {Object} customerInfo - Customer details (optional)
+ * @param {string} phoneNumber - WhatsApp number to send to (optional, defaults to WHATSAPP_NUMBER)
  */
-export const proceedToWhatsAppCheckout = (cartItems, orderSummary, customerInfo = null) => {
+export const proceedToWhatsAppCheckout = (cartItems, orderSummary, customerInfo = null, phoneNumber = WHATSAPP_NUMBER) => {
   if (!cartItems || cartItems.length === 0) {
     alert('Your cart is empty. Please add items before checkout.');
     return;
   }
 
   const message = createCartCheckoutMessage(cartItems, orderSummary, customerInfo);
-  const whatsappUrl = createWhatsAppURL(WHATSAPP_NUMBER, message);
+  const whatsappUrl = createWhatsAppURL(phoneNumber, message);
   
   // Open WhatsApp in new tab
   window.open(whatsappUrl, '_blank');
