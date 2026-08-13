@@ -59,7 +59,7 @@ export const IMAGE_CONFIG = {
 
 // API Endpoints (for future backend integration)
 export const API_ENDPOINTS = {
-  base: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+  base: process.env.REACT_APP_API_URL || 'https://thapasyabangles-production.up.railway.app/api',
   products: '/products',
   orders: '/orders',
   auth: '/auth',
