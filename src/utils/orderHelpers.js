@@ -7,7 +7,8 @@ import {
   updateDoc,
   onSnapshot,
   query,
-  orderBy
+  orderBy,
+  where
 } from 'firebase/firestore';
 
 export const ORDER_STATUSES = {
@@ -52,6 +53,34 @@ export const subscribeToOrdersUpdates = (callback, onError) => {
     },
     (error) => {
       console.error('Error subscribing to orders (check Firestore rules allow admin reads):', error);
+      if (onError) onError(error);
+    }
+  );
+};
+
+/**
+ * Real-time listener for a single customer's own orders, newest first.
+ * Used for non-admin sessions, where Firestore rules only allow reading own orders -
+ * an unfiltered collection query (subscribeToOrdersUpdates) would be denied for them.
+ */
+export const subscribeToCustomerOrders = (customerId, callback, onError) => {
+  const ordersQuery = query(
+    collection(db, COLLECTIONS.ORDERS),
+    where('customerId', '==', customerId),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(
+    ordersQuery,
+    (snapshot) => {
+      const orders = [];
+      snapshot.forEach((docSnap) => {
+        orders.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      callback(orders);
+    },
+    (error) => {
+      console.error('Error subscribing to customer orders:', error);
       if (onError) onError(error);
     }
   );

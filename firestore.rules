@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Storefront catalog & site content - anyone can read, only the admin account can write
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /category_pictures/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /intro_pictures/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /featured_products/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders - a signed-in customer can place an order for themselves and read it back;
+    // only admin can change status or read every order (e.g. the admin dashboard)
+    match /orders/{orderId} {
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Written only by the payment backend's Firebase Admin SDK (which bypasses these rules
+    // entirely) after verifying a Razorpay signature - no client should ever touch this directly
+    match /pending_payments/{orderId} {
+      allow read, write: if false;
+    }
+
+    // Per-user data - only the owning signed-in user (admin can additionally read profiles,
+    // e.g. for the Customers admin page, but never write another user's profile)
+    match /users/{userId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /carts/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /wishlists/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+  }
+}

@@ -34,6 +34,7 @@ import {
 } from './utils/helpers';
 import {
   subscribeToOrdersUpdates,
+  subscribeToCustomerOrders,
   updateOrderStatus as updateOrderStatusInFirestore
 } from './utils/orderHelpers';
 import { subscribeToCustomersUpdates } from './utils/customerHelpers';
@@ -110,10 +111,14 @@ function App() {
           name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
           isGoogleAuth: !!firebaseUser.providerData?.some(provider => provider.providerId === 'google.com')
         };
-        
+
+        // Admin status comes from a server-set custom claim, not the email address -
+        // force a refresh so a newly-granted/revoked claim is picked up right away
+        const idTokenResult = await firebaseUser.getIdTokenResult(true);
+
         setUser(userData);
         setIsLoggedIn(true);
-        setIsAdmin(userData.email === 'thapasyabangles@gmail.com');
+        setIsAdmin(idTokenResult.claims.admin === true);
         
         // Load user's cart and wishlist using the actual Firebase UID
         try {
@@ -165,23 +170,41 @@ function App() {
     return () => unsubscribe && unsubscribe();
   }, []);
 
-  // Load orders from Firebase
+  // Load orders from Firebase - admin sees all orders, a signed-in customer sees only
+  // their own (Firestore rules only allow reading your own order docs otherwise, so an
+  // unfiltered query would be denied and silently return nothing for non-admin sessions)
   useEffect(() => {
-    const unsubscribe = subscribeToOrdersUpdates((fetchedOrders) => {
-      setOrders(fetchedOrders);
-    });
+    if (isAdmin) {
+      const unsubscribe = subscribeToOrdersUpdates((fetchedOrders) => {
+        setOrders(fetchedOrders);
+      });
+      return () => unsubscribe && unsubscribe();
+    }
 
-    return () => unsubscribe && unsubscribe();
-  }, []);
+    if (user?.uid) {
+      const unsubscribe = subscribeToCustomerOrders(user.uid, (fetchedOrders) => {
+        setOrders(fetchedOrders);
+      });
+      return () => unsubscribe && unsubscribe();
+    }
 
-  // Load customers from Firebase (admin use)
+    setOrders([]);
+  }, [isAdmin, user?.uid]);
+
+  // Load customers from Firebase - admin only, since Firestore rules don't allow
+  // anyone else to list the full users collection
   useEffect(() => {
+    if (!isAdmin) {
+      setCustomers([]);
+      return;
+    }
+
     const unsubscribe = subscribeToCustomersUpdates((fetchedCustomers) => {
       setCustomers(fetchedCustomers);
     });
 
     return () => unsubscribe && unsubscribe();
-  }, []);
+  }, [isAdmin]);
 
   // Load store settings from Firebase
   useEffect(() => {
@@ -295,13 +318,14 @@ useEffect(() => {
         userUid = firebaseUser.uid;
       }
 
-      // Check if admin (based on email)
-      const adminUser = userData.email === 'thapasyabangles@gmail.com';
-      
+      // Admin status comes from a server-set custom claim, not the email address
+      const idTokenResult = await auth.currentUser.getIdTokenResult(true);
+      const adminUser = idTokenResult.claims.admin === true;
+
       setUser(userData);
       setIsLoggedIn(true);
       setIsAdmin(adminUser);
-      
+
       // Load user's cart and wishlist using the actual Firebase UID
       try {
         const userCart = await getCart(userUid);
@@ -356,13 +380,15 @@ useEffect(() => {
         };
       }
 
-      // Check if admin (based on email)
-      const adminUser = userData.email === 'thapasyabangles@gmail.com';
-      
+      // Admin status comes from a server-set custom claim, not the email address
+      // (a brand-new registration will never have it - that's intentional)
+      const idTokenResult = await auth.currentUser.getIdTokenResult(true);
+      const adminUser = idTokenResult.claims.admin === true;
+
       setUser(userData);
       setIsLoggedIn(true);
       setIsAdmin(adminUser);
-      
+
       // Redirect based on role
       setCurrentView(adminUser ? 'admin-dashboard' : 'home');
       
