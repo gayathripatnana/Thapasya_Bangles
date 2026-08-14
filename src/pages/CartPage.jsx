@@ -58,9 +58,12 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
   const [isSavingData, setIsSavingData] = useState(false);
   const [dataSaved, setDataSaved] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-      useEffect(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, []);
+  // Jump to the top on mount, and again whenever the checkout step changes,
+  // so the newly-shown step is visible instead of staying scrolled to
+  // wherever the triggering button happened to be.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [checkoutStep]);
 
   // Memoized calculations for performance
   const { subtotal, deliveryCharges, total, totalWeight, billableWeight } = useMemo(() => {
