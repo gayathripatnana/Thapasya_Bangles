@@ -104,6 +104,10 @@ def create_order(payload: CreateOrderRequest, uid: str = Depends(get_current_uid
             "customerEmail": order_data.customerEmail,
             "address": order_data.address.dict(),
             "items": priced_items,
+            # Flattened for Firestore security rules - allows a cheap `in` check
+            # for "did this order contain product X" without needing to inspect
+            # the `items` array of maps (rules can't filter/map over those).
+            "productIds": [item["productId"] for item in priced_items],
             "subtotal": subtotal,
             "deliveryCharges": delivery_charges,
             "total": total,

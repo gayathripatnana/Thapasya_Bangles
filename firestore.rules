@@ -41,9 +41,27 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Reviews - anyone can read; a signed-in customer may leave exactly one review per
+    // product per delivered order (enforced by requiring the review doc id to be
+    // `${orderId}_${productId}` - re-submitting that same id is an update, which only
+    // admin can do, so it can't be edited/spammed by the customer after creation).
+    // Verified-purchase check: the referenced order must belong to the requester, be
+    // Delivered, and actually contain the product (via the order's `productIds` array).
     match /reviews/{reviewId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.productId is string
+        && request.resource.data.orderId is string
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 1000
+        && reviewId == request.resource.data.orderId + '_' + request.resource.data.productId
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.customerId == request.auth.uid
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.status == 'Delivered'
+        && request.resource.data.productId in get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.productIds;
+      allow update, delete: if isAdmin();
     }
 
     // Orders - checkout is online-payment-only, so every order is created exclusively by

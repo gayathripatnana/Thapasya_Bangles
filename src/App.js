@@ -775,6 +775,8 @@ useEffect(() => {
           navigateToCart={() => setCurrentView('cart')}
           onProductClick={handleProductClick}
           storeSettings={storeSettings}
+          currentUserId={user?.uid}
+          customerOrders={orders}
         />;
       case 'login':
         return <LoginPage 
@@ -817,6 +819,7 @@ useEffect(() => {
             currentUserId={user?.uid}
             onBack={() => setCurrentView('products')}
             onProductClick={handleProductClick}
+            storeSettings={storeSettings}
           />
         ) : <LoginPage
           onLogin={handleLogin}
@@ -862,6 +865,7 @@ useEffect(() => {
             orders={orders}
             onStatusUpdate={updateOrderStatus}
             setCurrentView={setCurrentView}
+            storeSettings={storeSettings}
           />
         ) : <HomePage
           setCurrentView={setCurrentView}

@@ -4,6 +4,8 @@ import { ArrowLeft, Package, Heart, ShoppingCart, Star, Phone, Share2, Minus, Pl
 import { getProductsByCategory } from '../utils/helpers';
 import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
 import { handleImageFallback } from '../utils/imagePlaceholder';
+import { subscribeToProductReviews, submitProductReview, findReviewableOrder } from '../utils/reviewHelpers';
+import { getOrderDisplayNumber } from '../utils/orderHelpers';
 
 // Add the Google Drive URL conversion function
 const convertGoogleDriveUrl = (url) => {
@@ -50,7 +52,9 @@ const ProductDetailsPage = ({
   relatedProducts = [],
   onProductClick,
   navigateToCart,
-  storeSettings = DEFAULT_STORE_SETTINGS
+  storeSettings = DEFAULT_STORE_SETTINGS,
+  currentUserId,
+  customerOrders = []
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -58,6 +62,12 @@ const ProductDetailsPage = ({
   const [dynamicRelatedProducts, setDynamicRelatedProducts] = useState([]);
   const [selectedSize, setSelectedSize] = useState('');
   const [showSizeChart, setShowSizeChart] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
     useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -79,6 +89,63 @@ const ProductDetailsPage = ({
       images: processedImages
     };
   }, [product]);
+
+  // Subscribe to this product's reviews
+  useEffect(() => {
+    if (!processedProduct?.id) {
+      setReviews([]);
+      return;
+    }
+    setReviewSubmitted(false);
+    const unsubscribe = subscribeToProductReviews(processedProduct.id, setReviews);
+    return () => unsubscribe();
+  }, [processedProduct?.id]);
+
+  const reviewStats = useMemo(() => {
+    if (reviews.length === 0) return null;
+    const avg = reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length;
+    return { avg, count: reviews.length };
+  }, [reviews]);
+
+  const existingReviewIds = useMemo(() => new Set(reviews.map(r => r.id)), [reviews]);
+
+  const reviewableOrder = useMemo(() => {
+    if (!currentUserId || !processedProduct?.id) return null;
+    return findReviewableOrder(customerOrders, processedProduct.id, currentUserId, existingReviewIds);
+  }, [customerOrders, processedProduct?.id, currentUserId, existingReviewIds]);
+
+  const hasDeliveredOrderForProduct = useMemo(() => {
+    if (!currentUserId || !processedProduct?.id) return false;
+    return customerOrders.some(order =>
+      order.customerId === currentUserId &&
+      order.status === 'Delivered' &&
+      (order.items || []).some(item => item.productId === processedProduct.id)
+    );
+  }, [customerOrders, processedProduct?.id, currentUserId]);
+
+  const handleSubmitReview = async () => {
+    if (!reviewableOrder) return;
+    setIsSubmittingReview(true);
+    setReviewError('');
+    try {
+      await submitProductReview({
+        productId: processedProduct.id,
+        orderId: reviewableOrder.id,
+        customerId: currentUserId,
+        customerName: reviewableOrder.customerName,
+        rating: reviewRating,
+        comment: reviewComment.trim()
+      });
+      setReviewComment('');
+      setReviewRating(5);
+      setReviewSubmitted(true);
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      setReviewError('Failed to submit review. Please try again.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Load related products based on category
   useEffect(() => {
@@ -418,13 +485,15 @@ Looking forward to your response! 🙏`;
                     <Star
                       key={i}
                       className={`w-5 h-5 ${
-                        i < Math.floor(processedProduct.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                        i < Math.floor(reviewStats ? reviewStats.avg : processedProduct.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-gray-600">({processedProduct.rating}/5)</span>
-                <span className="text-sm text-gray-500">• 125 reviews</span>
+                <span className="text-gray-600">({(reviewStats ? reviewStats.avg : processedProduct.rating).toFixed(1)}/5)</span>
+                <span className="text-sm text-gray-500">
+                  • {reviewStats ? `${reviewStats.count} review${reviewStats.count !== 1 ? 's' : ''}` : 'No reviews yet'}
+                </span>
               </div>
 
               {/* Price */}
@@ -628,6 +697,85 @@ Looking forward to your response! 🙏`;
               </div>
             </div> */}
           </div>
+        </div>
+
+        {/* Customer Reviews */}
+        <div className="mt-16 border-t border-gray-200 pt-10">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Customer Reviews</h2>
+
+          {reviewableOrder && !reviewSubmitted && (
+            <div className="bg-gray-50 rounded-lg p-4 sm:p-6 mb-8">
+              <h3 className="font-semibold text-gray-800 mb-1">Write a Review</h3>
+              <p className="text-xs text-gray-500 mb-3">
+                Based on Order #{getOrderDisplayNumber(reviewableOrder.id)} (Delivered
+                {reviewableOrder.orderDate ? ` ${new Date(reviewableOrder.orderDate).toLocaleDateString('en-IN')}` : ''})
+              </p>
+              <div className="flex items-center space-x-1 mb-3">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setReviewRating(n)}
+                    aria-label={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                  >
+                    <Star className={`w-6 h-6 ${n <= reviewRating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Share your experience with this product..."
+                rows="3"
+                maxLength={1000}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 resize-none text-sm mb-3"
+              />
+              {reviewError && (
+                <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg mb-3 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{reviewError}</span>
+                </div>
+              )}
+              <button
+                onClick={handleSubmitReview}
+                disabled={isSubmittingReview}
+                className="bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+              >
+                {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          )}
+
+          {reviewSubmitted && (
+            <div className="flex items-center space-x-2 text-green-700 bg-green-50 p-4 rounded-lg mb-8">
+              <CheckCircle className="w-5 h-5 flex-shrink-0" />
+              <span>Thanks for your review!</span>
+            </div>
+          )}
+
+          {!reviewableOrder && !reviewSubmitted && hasDeliveredOrderForProduct && (
+            <p className="text-sm text-gray-500 mb-8">You've already reviewed this product. Thank you!</p>
+          )}
+
+          {reviews.length === 0 ? (
+            <p className="text-gray-500">No reviews yet. Be the first to review this product!</p>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <div key={review.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-gray-800">{review.customerName}</span>
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                      ))}
+                    </div>
+                  </div>
+                  {review.comment && <p className="text-sm text-gray-600">{review.comment}</p>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Related Products */}

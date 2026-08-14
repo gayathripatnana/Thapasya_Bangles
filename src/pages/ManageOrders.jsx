@@ -4,6 +4,10 @@ import { Search, Download, Eye, Phone, Mail, Clock, Truck, CheckCircle, Package,
 import AdminSidebar from '../components/admin/AdminSidebar';
 import { getOrderDisplayNumber } from '../utils/orderHelpers';
 import { getAddressLines } from '../utils/addressHelpers';
+import { convertGoogleDriveUrl } from '../utils/helpers';
+import { handleImageFallback } from '../utils/imagePlaceholder';
+import { downloadOrderInvoice } from '../utils/invoiceHelpers';
+import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
 
 const getOrderItemsSummary = (order) => {
   const items = order.items || [];
@@ -12,7 +16,31 @@ const getOrderItemsSummary = (order) => {
   return items.length > 1 ? `${firstName} +${items.length - 1} more` : firstName;
 };
 
-const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
+const OrderItemThumb = ({ image, alt, size = 40 }) => {
+  const src = image ? convertGoogleDriveUrl(image) : null;
+  const style = { width: size, height: size };
+
+  if (!src) {
+    return (
+      <div className="flex items-center justify-center bg-gray-100 rounded-lg flex-shrink-0" style={style}>
+        <Package className="w-4 h-4 text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="object-cover rounded-lg flex-shrink-0 bg-gray-100"
+      style={style}
+      loading="lazy"
+      onError={(e) => handleImageFallback(e, size, '')}
+    />
+  );
+};
+
+const ManageOrders = ({ orders, onStatusUpdate, setCurrentView, storeSettings = DEFAULT_STORE_SETTINGS }) => {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -250,7 +278,10 @@ const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
                         </span>
                       </div>
                       <div className="text-sm text-gray-700 mb-1">{order.customerName}</div>
-                      <div className="text-sm text-gray-500 mb-1">{getOrderItemsSummary(order)}</div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <OrderItemThumb image={(order.items || [])[0]?.image} alt={getOrderItemsSummary(order)} size={32} />
+                        <div className="text-sm text-gray-500">{getOrderItemsSummary(order)}</div>
+                      </div>
                       <div className="flex items-center justify-between mb-3">
                         <div className="text-xs text-gray-500">{new Date(order.orderDate).toLocaleDateString()}</div>
                         <div className="font-semibold text-gray-800">₹{(order.total || 0).toLocaleString()}</div>
@@ -318,7 +349,10 @@ const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
                               </div>
                             </td>
                             <td className="py-4 px-6">
-                              <div className="text-sm text-gray-800">{getOrderItemsSummary(order)}</div>
+                              <div className="flex items-center space-x-3">
+                                <OrderItemThumb image={(order.items || [])[0]?.image} alt={getOrderItemsSummary(order)} size={40} />
+                                <div className="text-sm text-gray-800">{getOrderItemsSummary(order)}</div>
+                              </div>
                             </td>
                             <td className="py-4 px-6">
                               <div className="font-semibold text-gray-800">
@@ -436,13 +470,16 @@ const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
                       <div className="space-y-2">
                         {(selectedOrder.items || []).map((item, index) => (
                           <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg text-sm">
-                            <div>
-                              <div className="font-medium text-gray-800">{item.name}</div>
-                              <div className="text-xs text-gray-500">
-                                {item.selectedSize ? `Size: ${item.selectedSize} · ` : ''}Qty: {item.quantity}
+                            <div className="flex items-center space-x-3 min-w-0">
+                              <OrderItemThumb image={item.image} alt={item.name} size={48} />
+                              <div className="min-w-0">
+                                <div className="font-medium text-gray-800 truncate">{item.name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {item.selectedSize ? `Size: ${item.selectedSize} · ` : ''}Qty: {item.quantity}
+                                </div>
                               </div>
                             </div>
-                            <div className="font-semibold text-gray-800">₹{(item.price * item.quantity).toLocaleString()}</div>
+                            <div className="font-semibold text-gray-800 flex-shrink-0 ml-2">₹{(item.price * item.quantity).toLocaleString()}</div>
                           </div>
                         ))}
                       </div>
@@ -458,6 +495,13 @@ const ManageOrders = ({ orders, onStatusUpdate, setCurrentView }) => {
                     </div>
 
                     <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8">
+                      <button
+                        onClick={() => downloadOrderInvoice(selectedOrder, storeSettings)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download Invoice</span>
+                      </button>
                       <button
                         onClick={() => handleWhatsAppContact(selectedOrder)}
                         className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"

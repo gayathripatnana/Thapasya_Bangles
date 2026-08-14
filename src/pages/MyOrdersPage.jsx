@@ -1,8 +1,10 @@
 // pages/MyOrdersPage.jsx
 import React, { useMemo } from 'react';
-import { ArrowLeft, Package, Clock, Truck, CheckCircle, MapPin, Phone } from 'lucide-react';
+import { ArrowLeft, Package, Clock, Truck, CheckCircle, MapPin, Phone, Download } from 'lucide-react';
 import { getOrderDisplayNumber } from '../utils/orderHelpers';
 import { getAddressLines } from '../utils/addressHelpers';
+import { downloadOrderInvoice } from '../utils/invoiceHelpers';
+import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
 
 const STATUS_STEPS = ['Processing', 'Shipped', 'Delivered'];
 
@@ -52,7 +54,7 @@ const OrderProgress = ({ status }) => {
   );
 };
 
-const MyOrdersPage = ({ orders, currentUserId, onBack, onProductClick }) => {
+const MyOrdersPage = ({ orders, currentUserId, onBack, onProductClick, storeSettings = DEFAULT_STORE_SETTINGS }) => {
   const myOrders = useMemo(() => {
     return orders
       .filter(order => order.customerId === currentUserId)
@@ -181,6 +183,14 @@ const MyOrdersPage = ({ orders, currentUserId, onBack, onProductClick }) => {
                     <span>{order.customerPhone}</span>
                   </div>
                 )}
+
+                <button
+                  onClick={() => downloadOrderInvoice(order, storeSettings)}
+                  className="w-full flex items-center justify-center space-x-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm mt-1"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Invoice</span>
+                </button>
               </div>
             </div>
           ))}
