@@ -1,14 +1,11 @@
 // pages/CartPage.jsx - Complete with address saving and cart clearing
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Truck, Shield, RotateCcw, Star, Phone, User, Ruler, AlertCircle, CheckCircle, CreditCard } from 'lucide-react';
-import { proceedToWhatsAppCheckout } from '../utils/whatsappCheckout';
+import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, Truck, Shield, RotateCcw, Star, User, Ruler, AlertCircle, CheckCircle, CreditCard } from 'lucide-react';
 import { getProductsByCategory } from '../utils/helpers';
-import { createOrder } from '../utils/orderHelpers';
-import { DEFAULT_STORE_SETTINGS } from '../utils/settingsHelpers';
 import { EMPTY_ADDRESS, normalizeAddress, isAddressComplete } from '../utils/addressHelpers';
 import { createRazorpayOrder, verifyRazorpayPayment, openRazorpayCheckout } from '../utils/paymentHelpers';
 import { handleImageFallback } from '../utils/imagePlaceholder';
-import { calculateShippingCost, calculateTotalWeight, DEFAULT_SHIPPING_SETTINGS } from '../utils/shippingHelpers';
+import { calculateShippingCost, calculateTotalWeight, DEFAULT_SHIPPING_SETTINGS, MIN_BILLABLE_WEIGHT_KG } from '../utils/shippingHelpers';
 import { INDIAN_STATES } from '../utils/indianStates';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase/config';
@@ -45,9 +42,9 @@ const convertGoogleDriveUrl = (url) => {
   }
 };
 
-const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize, currentUserId, storeSettings = DEFAULT_STORE_SETTINGS, shippingRates = DEFAULT_SHIPPING_SETTINGS, showAlert }) => {
+const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProductClick, onAddToCart, onUpdateCartSize, currentUserId, shippingRates = DEFAULT_SHIPPING_SETTINGS, showAlert }) => {
   
-  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart' -> 'address' -> 'review'
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     phone: '',
@@ -59,7 +56,6 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [error, setError] = useState('');
   const [isSavingData, setIsSavingData] = useState(false);
-  const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
   const [dataSaved, setDataSaved] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
       useEffect(() => {
@@ -67,13 +63,14 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     }, []);
 
   // Memoized calculations for performance
-  const { subtotal, deliveryCharges, total, totalWeight } = useMemo(() => {
+  const { subtotal, deliveryCharges, total, totalWeight, billableWeight } = useMemo(() => {
     const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalWeight = calculateTotalWeight(cartItems);
+    const billableWeight = Math.max(totalWeight, MIN_BILLABLE_WEIGHT_KG);
     const deliveryCharges = calculateShippingCost(cartItems, customerInfo.address.state, shippingRates);
     const total = subtotal + deliveryCharges;
 
-    return { subtotal, deliveryCharges, total, totalWeight };
+    return { subtotal, deliveryCharges, total, totalWeight, billableWeight };
   }, [cartItems, customerInfo.address.state, shippingRates]);
 
   // Process cart items with optimized images
@@ -263,63 +260,33 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
     }
   };
 
-  const handleSaveAndContinue = async () => {
-    const saved = await saveUserData();
-    if (saved) {
-      setShowCheckoutConfirmation(true);
+  // Step 1 (cart) -> Step 2 (address)
+  const handleProceedToCheckout = () => {
+    setError('');
+    if (dataSaved && isAddressComplete(customerInfo.address)) {
+      // Returning customer with a complete saved address - skip straight to review
+      setCheckoutStep('review');
+    } else {
+      setCheckoutStep('address');
     }
   };
 
-const handleFinalCheckout = async () => {
-  const orderSummary = {
-    subtotal,
-    discount: 0,
-    deliveryCharges,
-    total
+  // Step 2 (address) -> Step 3 (review)
+  const handleContinueFromAddress = async () => {
+    const saved = await saveUserData();
+    if (saved) {
+      setCheckoutStep('review');
+    }
   };
 
-  // ✅ Make sure customerInfo includes the structured address
-  const checkoutData = {
-    ...customerInfo,
-    address: normalizeAddress(customerInfo.address)
+  const handleBackStep = () => {
+    setError('');
+    if (checkoutStep === 'review') {
+      setCheckoutStep('address');
+    } else if (checkoutStep === 'address') {
+      setCheckoutStep('cart');
+    }
   };
-
-  // Persist the order to Firestore so it shows up in the admin dashboard
-  try {
-    await createOrder({
-      customerId: currentUserId,
-      customerName: checkoutData.name || '',
-      customerPhone: checkoutData.phone || '',
-      customerEmail: checkoutData.email || '',
-      address: checkoutData.address,
-      items: cartItems.map(item => ({
-        productId: item.id,
-        name: item.name,
-        category: item.category,
-        image: item.image,
-        selectedSize: item.selectedSize || null,
-        price: item.price,
-        quantity: item.quantity
-      })),
-      subtotal,
-      deliveryCharges,
-      total,
-      paymentMethod: 'WhatsApp',
-      paymentStatus: 'Pay on Delivery / Manual'
-    });
-  } catch (error) {
-    console.error('Error saving order, continuing with WhatsApp checkout:', error);
-  }
-
-  // Proceed with WhatsApp checkout
-  proceedToWhatsAppCheckout(cartItems, orderSummary, checkoutData, storeSettings.whatsappNumber);
-
-  // Clear cart after successful checkout
-  await clearCartAfterCheckout();
-
-  // Close confirmation modal
-  setShowCheckoutConfirmation(false);
-};
 
   const handlePayOnline = async () => {
     if (!currentUserId || !auth.currentUser) {
@@ -329,7 +296,7 @@ const handleFinalCheckout = async () => {
 
     if (!isAddressComplete(customerInfo.address) || !customerInfo.phone) {
       setError('Please save your delivery details first');
-      setShowCustomerForm(true);
+      setCheckoutStep('address');
       return;
     }
 
@@ -373,7 +340,7 @@ const handleFinalCheckout = async () => {
               razorpay_signature: response.razorpay_signature
             });
             await clearCartAfterCheckout();
-            setShowCheckoutConfirmation(false);
+            setCheckoutStep('cart');
             showAlert && showAlert('Payment Successful', 'Your payment was received and your order has been placed!', 'success');
           } catch (verifyError) {
             console.error('Error verifying payment:', verifyError);
@@ -393,60 +360,6 @@ const handleFinalCheckout = async () => {
       setIsProcessingPayment(false);
     }
   };
-
-  const handleQuickCheckout = useCallback(async () => {
-    // Add proper validation
-    if (!currentUserId) {
-      setError('Please log in to use quick checkout');
-      setShowCustomerForm(true);
-      return;
-    }
-
-    try {
-      const userDocRef = doc(db, 'users', currentUserId);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        setError('User data not found. Please fill the form.');
-        setShowCustomerForm(true);
-        return;
-      }
-      
-      const userData = userDoc.data();
-      
-      // Check if user has required phone number
-      if (!userData.phone) {
-        setShowCustomerForm(true);
-        setError('Please provide your phone number for delivery');
-        return;
-      }
-      
-      // Check if user has a complete address saved
-      if (!isAddressComplete(userData.address)) {
-        setShowCustomerForm(true);
-        setError('Please provide your complete delivery address');
-        return;
-      }
-
-      // Use database data for quick checkout (including saved address)
-      const quickCheckoutData = {
-        name: userData.name || '',
-        phone: userData.phone,
-        email: userData.email || '',
-        address: normalizeAddress(userData.address) // ✅ Use saved address
-      };
-      
-      // Also update local state to show the saved address
-      setCustomerInfo(quickCheckoutData);
-      
-      // Show confirmation for quick checkout too
-      setShowCheckoutConfirmation(true);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      setError('Failed to load user data. Please fill the form.');
-      setShowCustomerForm(true);
-    }
-  }, [currentUserId]);
 
   const handleRelatedProductClick = useCallback((productId) => {
     if (onProductClick) {
@@ -498,17 +411,54 @@ const handleFinalCheckout = async () => {
     );
   }
 
+  const STEP_LABELS = [
+    { key: 'cart', label: 'Cart' },
+    { key: 'address', label: 'Delivery Address' },
+    { key: 'review', label: 'Review & Pay' }
+  ];
+  const stepIndex = STEP_LABELS.findIndex(s => s.key === checkoutStep);
+
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="container mx-auto px-4">
         <button
-          onClick={onBack}
+          onClick={checkoutStep === 'cart' ? onBack : handleBackStep}
           className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Continue Shopping</span>
+          <span>
+            {checkoutStep === 'cart' ? 'Continue Shopping' : checkoutStep === 'address' ? 'Back to Cart' : 'Back to Address'}
+          </span>
         </button>
 
+        {/* Step Indicator */}
+        <div className="flex items-center justify-center mb-6 sm:mb-8">
+          {STEP_LABELS.map((step, idx) => (
+            <React.Fragment key={step.key}>
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-sm sm:text-base transition-colors ${
+                    idx < stepIndex
+                      ? 'bg-green-500 text-white'
+                      : idx === stepIndex
+                      ? 'bg-yellow-500 text-white'
+                      : 'bg-gray-200 text-gray-500'
+                  }`}
+                >
+                  {idx < stepIndex ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : idx + 1}
+                </div>
+                <span className={`mt-1 text-[10px] sm:text-xs text-center max-w-[70px] sm:max-w-none ${idx === stepIndex ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
+                  {step.label}
+                </span>
+              </div>
+              {idx < STEP_LABELS.length - 1 && (
+                <div className={`w-8 sm:w-16 h-0.5 mb-4 sm:mb-5 ${idx < stepIndex ? 'bg-green-500' : 'bg-gray-200'}`} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {checkoutStep === 'cart' && (
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Cart Items - Takes 2/3 on desktop */}
           <div className="lg:flex-1 lg:max-w-[66.666%]">
@@ -721,7 +671,7 @@ const handleFinalCheckout = async () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none text-sm"
               ></textarea>
               <p className="text-xs text-gray-500 mt-2">
-                Note: These instructions will be included in your WhatsApp order message
+                Note: If you need to add special instructions, please mention them to us after checkout
               </p>
             </div>
           </div>
@@ -735,23 +685,15 @@ const handleFinalCheckout = async () => {
 
               <div className="p-4 sm:p-6 space-y-4">
 
-                {/* Price Breakdown */}
+                {/* Subtotal (shipping is not known yet - calculated after the address step) */}
                 <div className="space-y-3 pt-4 border-t border-gray-200">
                   <div className="flex justify-between text-sm sm:text-base">
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium">₹{subtotal.toLocaleString()}</span>
                   </div>
-                  
-                  <div className="flex justify-between text-sm sm:text-base">
-                    <span className="text-gray-600">Delivery Charges</span>
-                    <span className={`font-medium ${deliveryCharges === 0 ? 'text-yellow-600' : ''}`}>
-                      {deliveryCharges === 0 ? 'FREE' : `₹${deliveryCharges}`}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-200">
-                    <span>Total</span>
-                    <span className="text-yellow-600">₹{total.toLocaleString()}</span>
+                  <div className="flex justify-between text-sm sm:text-base text-gray-500">
+                    <span>Shipping</span>
+                    <span>Calculated next step</span>
                   </div>
                 </div>
 
@@ -762,145 +704,9 @@ const handleFinalCheckout = async () => {
                     <span className="font-medium text-sm">Delivery Information</span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    {isAddressComplete(customerInfo.address)
-                      ? `Shipping to ${customerInfo.address.state}: ${totalWeight.toFixed(2)}kg × ₹${deliveryCharges > 0 && totalWeight > 0 ? (deliveryCharges / totalWeight).toFixed(0) : '0'}/kg = ₹${deliveryCharges.toLocaleString()}`
-                      : 'Shipping is calculated based on order weight and your delivery state'
-                    }
+                    Shipping is calculated based on order weight and your delivery state - enter your address in the next step to see the final total.
                   </p>
                 </div>
-
-                {/* Customer Information Form */}
-                {showCustomerForm && (
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-800 mb-3 flex items-center text-sm">
-                      <User className="w-4 h-4 mr-2" />
-                      Customer Information
-                      {dataSaved && (
-                        <span className="ml-2 flex items-center text-green-600 text-xs">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Saved
-                        </span>
-                      )}
-                    </h4>
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Your Name"
-                        value={customerInfo.name}
-                        onChange={(e) => handleCustomerInfoChange('name', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Phone Number *"
-                        value={customerInfo.phone}
-                        onChange={(e) => handleCustomerInfoChange('phone', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                        required
-                      />
-                      <input
-                        type="email"
-                        placeholder="Email (Optional)"
-                        value={customerInfo.email}
-                        onChange={(e) => handleCustomerInfoChange('email', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                      />
-                      <div className="pt-2 border-t border-gray-200">
-                        <h5 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Delivery Address *</h5>
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Door / House No. *"
-                            value={customerInfo.address.doorNumber}
-                            onChange={(e) => handleAddressChange('doorNumber', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Apartment/Building (optional)"
-                            value={customerInfo.address.apartment}
-                            onChange={(e) => handleAddressChange('apartment', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Street / Area *"
-                          value={customerInfo.address.street}
-                          onChange={(e) => handleAddressChange('street', e.target.value)}
-                          className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Landmark (optional)"
-                          value={customerInfo.address.landmark}
-                          onChange={(e) => handleAddressChange('landmark', e.target.value)}
-                          className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                        />
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          <input
-                            type="text"
-                            placeholder="Village / Town *"
-                            value={customerInfo.address.village}
-                            onChange={(e) => handleAddressChange('village', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                          />
-                          <input
-                            type="text"
-                            placeholder="District *"
-                            value={customerInfo.address.district}
-                            onChange={(e) => handleAddressChange('district', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          <select
-                            value={customerInfo.address.state}
-                            onChange={(e) => handleAddressChange('state', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm bg-white"
-                          >
-                            <option value="">Select State *</option>
-                            {INDIAN_STATES.map(state => (
-                              <option key={state} value={state}>{state}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            placeholder="Pincode *"
-                            value={customerInfo.address.pincode}
-                            onChange={(e) => handleAddressChange('pincode', e.target.value.replace(/[^0-9]/g, ''))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Save Data Button */}
-                    <button
-                      onClick={handleSaveAndContinue}
-                      disabled={isSavingData || !customerInfo.phone || !isAddressComplete(customerInfo.address)}
-                      className={`w-full mt-4 py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm ${
-                        isSavingData || !customerInfo.phone || !isAddressComplete(customerInfo.address)
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-green-500 hover:bg-green-600 text-white transform hover:-translate-y-0.5 hover:shadow-lg'
-                      }`}
-                    >
-                      {isSavingData ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4" />
-                          <span>{dataSaved ? 'Data Saved - Continue' : 'Save & Continue'}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
 
                 {/* Error Message */}
                 {error && (
@@ -910,77 +716,20 @@ const handleFinalCheckout = async () => {
                   </div>
                 )}
 
-                {/* Checkout Buttons */}
-                <div className="space-y-3">
-                  {/* Main Checkout Button */}
-                  {!showCustomerForm ? (
-                    <button
-                      onClick={() => setShowCustomerForm(true)}
-                      className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 text-sm sm:text-base"
-                    >
-                      <Phone className="w-5 h-5" />
-                      <span>Proceed to Checkout</span>
-                    </button>
-                  ) : dataSaved ? (
-                    <>
-                      <button
-                        onClick={handlePayOnline}
-                        disabled={isProcessingPayment}
-                        className={`w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base ${
-                          isProcessingPayment
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transform hover:-translate-y-1 hover:shadow-lg'
-                        }`}
-                      >
-                        {isProcessingPayment ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        ) : (
-                          <CreditCard className="w-5 h-5" />
-                        )}
-                        <span>{isProcessingPayment ? 'Processing...' : 'Pay Online (Razorpay)'}</span>
-                      </button>
-                      <button
-                        onClick={handleSaveAndContinue}
-                        disabled={isProcessingPayment}
-                        className="w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 transform hover:-translate-y-1 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Phone className="w-5 h-5" />
-                        <span>Checkout via WhatsApp</span>
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleSaveAndContinue}
-                      disabled={isSavingData}
-                      className="w-full py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base bg-gray-300 text-gray-500 cursor-not-allowed"
-                    >
-                      <Phone className="w-5 h-5" />
-                      <span>Save Data First</span>
-                    </button>
-                  )}
+                {/* Proceed Button */}
+                <button
+                  onClick={handleProceedToCheckout}
+                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 px-6 rounded-lg font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all transform hover:-translate-y-1 hover:shadow-lg flex items-center justify-center space-x-2 text-sm sm:text-base"
+                >
+                  <CreditCard className="w-5 h-5" />
+                  <span>Proceed to Checkout</span>
+                </button>
 
-                  {/* Quick Checkout Option */}
-                  {!showCustomerForm && dataSaved && (
-                    <button
-                      onClick={handleQuickCheckout}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2"
-                    >
-                      <Phone className="w-4 h-4" />
-                      <span>Quick Checkout (Use Saved Data)</span>
-                    </button>
-                  )}
-
-                  {/* Toggle Customer Form */}
-                  {!showCustomerForm && !dataSaved && (
-                    <button
-                      onClick={() => setShowCustomerForm(true)}
-                      className="w-full text-yellow-600 hover:text-yellow-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2 border border-yellow-200 hover:border-yellow-300"
-                    >
-                      <User className="w-4 h-4" />
-                      <span>Add Customer Details</span>
-                    </button>
-                  )}
-                </div>
+                {dataSaved && isAddressComplete(customerInfo.address) && (
+                  <p className="text-xs text-center text-gray-500">
+                    Using your saved address in {customerInfo.address.state}
+                  </p>
+                )}
 
                 {/* Trust Badges */}
                 <div className="pt-4 border-t border-gray-200">
@@ -1009,6 +758,285 @@ const handleFinalCheckout = async () => {
             </div>
           </div>
         </div>
+        )}
+
+        {checkoutStep === 'address' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-1 flex items-center">
+                <User className="w-5 h-5 mr-2" />
+                Delivery Address
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">Tell us where to deliver your order</p>
+
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Your Name"
+                  value={customerInfo.name}
+                  onChange={(e) => handleCustomerInfoChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number *"
+                  value={customerInfo.phone}
+                  onChange={(e) => handleCustomerInfoChange('phone', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                  required
+                />
+                <input
+                  type="email"
+                  placeholder="Email (Optional)"
+                  value={customerInfo.email}
+                  onChange={(e) => handleCustomerInfoChange('email', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                />
+                <div className="pt-2 border-t border-gray-200">
+                  <h5 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Delivery Address *</h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Door / House No. *"
+                      value={customerInfo.address.doorNumber}
+                      onChange={(e) => handleAddressChange('doorNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Apartment/Building (optional)"
+                      value={customerInfo.address.apartment}
+                      onChange={(e) => handleAddressChange('apartment', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Street / Area *"
+                    value={customerInfo.address.street}
+                    onChange={(e) => handleAddressChange('street', e.target.value)}
+                    className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Landmark (optional)"
+                    value={customerInfo.address.landmark}
+                    onChange={(e) => handleAddressChange('landmark', e.target.value)}
+                    className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                    <input
+                      type="text"
+                      placeholder="Village / Town *"
+                      value={customerInfo.address.village}
+                      onChange={(e) => handleAddressChange('village', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="District *"
+                      value={customerInfo.address.district}
+                      onChange={(e) => handleAddressChange('district', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                    <select
+                      value={customerInfo.address.state}
+                      onChange={(e) => handleAddressChange('state', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm bg-white"
+                    >
+                      <option value="">Select State *</option>
+                      {INDIAN_STATES.map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="Pincode *"
+                      value={customerInfo.address.pincode}
+                      onChange={(e) => handleAddressChange('pincode', e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg mt-4">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">{error}</span>
+                </div>
+              )}
+
+              {/* Continue Button */}
+              <button
+                onClick={handleContinueFromAddress}
+                disabled={isSavingData || !customerInfo.phone || !isAddressComplete(customerInfo.address)}
+                className={`w-full mt-4 py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base ${
+                  isSavingData || !customerInfo.phone || !isAddressComplete(customerInfo.address)
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 transform hover:-translate-y-0.5 hover:shadow-lg'
+                }`}
+              >
+                {isSavingData ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Continue to Review</span>
+                    <CheckCircle className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {checkoutStep === 'review' && (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
+                  <Truck className="w-5 h-5 mr-2" />
+                  Delivery Address
+                </h3>
+                <button
+                  onClick={() => setCheckoutStep('address')}
+                  className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
+                >
+                  Edit
+                </button>
+              </div>
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg text-sm text-gray-700">
+                <p className="font-medium text-gray-800">{customerInfo.name || 'N/A'} &middot; {customerInfo.phone}</p>
+                <p className="mt-1">
+                  {[
+                    customerInfo.address.doorNumber,
+                    customerInfo.address.apartment,
+                    customerInfo.address.street,
+                    customerInfo.address.landmark
+                  ].filter(Boolean).join(', ')}
+                </p>
+                <p>
+                  {[
+                    customerInfo.address.village,
+                    customerInfo.address.district,
+                    customerInfo.address.state,
+                    customerInfo.address.pincode
+                  ].filter(Boolean).join(', ')}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3">Order Items ({cartItems.length})</h3>
+              <div className="divide-y divide-gray-200">
+                {processedCartItems.map((item) => (
+                  <div key={`${item.id}-${item.selectedSize}`} className="py-3 flex items-center space-x-3">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                      loading="lazy"
+                      onError={(e) => handleImageFallback(e, 100, 'Image Error')}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-500">
+                        Qty {item.quantity}{item.selectedSize ? ` · Size ${item.selectedSize}` : ''}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800">₹{(item.price * item.quantity).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Price Breakdown</h3>
+
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm sm:text-base">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="font-medium">₹{subtotal.toLocaleString()}</span>
+                </div>
+
+                <div className="flex justify-between text-sm sm:text-base">
+                  <span className="text-gray-600">Delivery Charges</span>
+                  <span className={`font-medium ${deliveryCharges === 0 ? 'text-yellow-600' : ''}`}>
+                    {deliveryCharges === 0 ? 'FREE' : `₹${deliveryCharges}`}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-200">
+                  <span>Total</span>
+                  <span className="text-yellow-600">₹{total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mt-4">
+                <p className="text-xs text-gray-600">
+                  Shipping to {customerInfo.address.state}: {billableWeight.toFixed(2)}kg{totalWeight < MIN_BILLABLE_WEIGHT_KG ? ' (1kg minimum)' : ''} × ₹{deliveryCharges > 0 && billableWeight > 0 ? (deliveryCharges / billableWeight).toFixed(0) : '0'}/kg = ₹{deliveryCharges.toLocaleString()}
+                </p>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg mt-4">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">{error}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handlePayOnline}
+                disabled={isProcessingPayment}
+                className={`w-full mt-4 py-3 px-6 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 text-sm sm:text-base ${
+                  isProcessingPayment
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transform hover:-translate-y-1 hover:shadow-lg'
+                }`}
+              >
+                {isProcessingPayment ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <CreditCard className="w-5 h-5" />
+                )}
+                <span>{isProcessingPayment ? 'Processing...' : 'Pay Online'}</span>
+              </button>
+
+              {/* Trust Badges */}
+              <div className="pt-4 mt-4 border-t border-gray-200">
+                <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 text-center">
+                  <div>
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                      <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />
+                    </div>
+                    <span className="text-xs">Secure</span>
+                  </div>
+                  <div>
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                      <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600" />
+                    </div>
+                    <span className="text-xs">Returns</span>
+                  </div>
+                  <div>
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                      <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />
+                    </div>
+                    <span className="text-xs">Quality</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Size Selection Modal */}
@@ -1047,62 +1075,6 @@ const handleFinalCheckout = async () => {
         </div>
       )}
 
-      {/* Checkout Confirmation Modal */}
-      {showCheckoutConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div 
-            className="bg-white rounded-lg p-6 sm:p-8 max-w-md w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Ready to Checkout?</h3>
-              <p className="text-gray-600 text-sm">
-                Your order will be sent via WhatsApp and your cart will be cleared.
-              </p>
-            </div>
-
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <h4 className="font-semibold text-gray-800 mb-3 text-sm">Order Summary:</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Items:</span>
-                  <span>{cartItems.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>₹{subtotal.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Delivery:</span>
-                  <span>{deliveryCharges === 0 ? 'FREE' : `₹${deliveryCharges}`}</span>
-                </div>
-                <div className="flex justify-between font-bold border-t pt-2">
-                  <span>Total:</span>
-                  <span className="text-yellow-600">₹{total.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowCheckoutConfirmation(false)}
-                className="flex-1 py-3 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleFinalCheckout}
-                className="flex-1 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center space-x-2"
-              >
-                <span>Confirm & Checkout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

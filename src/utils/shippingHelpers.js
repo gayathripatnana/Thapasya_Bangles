@@ -11,6 +11,10 @@ export const DEFAULT_SHIPPING_SETTINGS = {
   defaultRatePerKg: 100
 };
 
+// Every order is billed for at least 1kg of shipping, even if the actual
+// item weight is lower - extra weight above 1kg is billed on top of that.
+export const MIN_BILLABLE_WEIGHT_KG = 1;
+
 /**
  * Real-time listener for shipping rates, falling back to defaults if not yet configured
  */
@@ -66,11 +70,13 @@ export const calculateTotalWeight = (items = []) => {
 };
 
 /**
- * Shipping cost = total order weight (kg) x the customer's state rate (Rs/kg).
+ * Shipping cost = billable order weight (kg) x the customer's state rate (Rs/kg).
+ * The billable weight has a 1kg minimum - a lighter order is still charged as
+ * if it weighed 1kg, with any weight above that added on top as normal.
  * Falls back to the admin's default rate if that state has no rate set yet.
  */
 export const calculateShippingCost = (items, state, shippingRates = DEFAULT_SHIPPING_SETTINGS) => {
-  const totalWeight = calculateTotalWeight(items);
+  const billableWeight = Math.max(calculateTotalWeight(items), MIN_BILLABLE_WEIGHT_KG);
   const ratePerKg = (state && shippingRates.rates?.[state]) || shippingRates.defaultRatePerKg || DEFAULT_SHIPPING_SETTINGS.defaultRatePerKg;
-  return Math.round(totalWeight * ratePerKg);
+  return Math.round(billableWeight * ratePerKg);
 };

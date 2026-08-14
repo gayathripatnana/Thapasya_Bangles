@@ -3,7 +3,12 @@ from datetime import datetime, timezone
 import razorpay.errors
 from fastapi import APIRouter, Depends, HTTPException
 
-from config import DEFAULT_PRODUCT_WEIGHT_KG, DEFAULT_SHIPPING_RATE_PER_KG, RAZORPAY_KEY_ID
+from config import (
+    DEFAULT_PRODUCT_WEIGHT_KG,
+    DEFAULT_SHIPPING_RATE_PER_KG,
+    MIN_BILLABLE_WEIGHT_KG,
+    RAZORPAY_KEY_ID,
+)
 from dependencies import get_current_uid
 from schemas import (
     CreateOrderRequest,
@@ -60,7 +65,8 @@ def _compute_order_totals(order_data):
         })
 
     rate_per_kg = _get_shipping_rate_per_kg(order_data.address.state)
-    delivery_charges = round(total_weight * rate_per_kg)
+    billable_weight = max(total_weight, MIN_BILLABLE_WEIGHT_KG)
+    delivery_charges = round(billable_weight * rate_per_kg)
     total = subtotal + delivery_charges
 
     return priced_items, subtotal, delivery_charges, total

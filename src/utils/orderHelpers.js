@@ -1,9 +1,11 @@
 // utils/orderHelpers.js
+// Orders are only ever created by the payment backend's Admin SDK, after verifying a real
+// Razorpay signature (see server/routers/orders.py) - there is no client-side order creation
+// here, and Firestore rules block clients from writing to `orders` directly.
 import { db, COLLECTIONS } from '../firebase/config';
 import {
-  collection,
   doc,
-  addDoc,
+  collection,
   updateDoc,
   onSnapshot,
   query,
@@ -15,25 +17,6 @@ export const ORDER_STATUSES = {
   PROCESSING: 'Processing',
   SHIPPED: 'Shipped',
   DELIVERED: 'Delivered'
-};
-
-/**
- * Create a single order document for an entire checkout (all cart items together)
- */
-export const createOrder = async (orderData) => {
-  try {
-    const ordersRef = collection(db, COLLECTIONS.ORDERS);
-    const docRef = await addDoc(ordersRef, {
-      ...orderData,
-      status: ORDER_STATUSES.PROCESSING,
-      orderDate: new Date().toISOString(),
-      createdAt: new Date()
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error('Error creating order:', error);
-    throw error;
-  }
 };
 
 /**
@@ -62,12 +45,15 @@ export const subscribeToOrdersUpdates = (callback, onError) => {
  * Real-time listener for a single customer's own orders, newest first.
  * Used for non-admin sessions, where Firestore rules only allow reading own orders -
  * an unfiltered collection query (subscribeToOrdersUpdates) would be denied for them.
+ *
+ * Sorted client-side rather than via `orderBy('createdAt')` in the query itself -
+ * combining that with the `where('customerId', ...)` filter requires a composite
+ * index to be created in the Firebase console before the query works at all.
  */
 export const subscribeToCustomerOrders = (customerId, callback, onError) => {
   const ordersQuery = query(
     collection(db, COLLECTIONS.ORDERS),
-    where('customerId', '==', customerId),
-    orderBy('createdAt', 'desc')
+    where('customerId', '==', customerId)
   );
 
   return onSnapshot(
@@ -76,6 +62,11 @@ export const subscribeToCustomerOrders = (customerId, callback, onError) => {
       const orders = [];
       snapshot.forEach((docSnap) => {
         orders.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      orders.sort((a, b) => {
+        const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt || 0).getTime();
+        const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt || 0).getTime();
+        return bTime - aTime;
       });
       callback(orders);
     },

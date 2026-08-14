@@ -46,12 +46,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Orders - a signed-in customer can place an order for themselves and read it back;
-    // only admin can change status or read every order (e.g. the admin dashboard)
+    // Orders - checkout is online-payment-only, so every order is created exclusively by
+    // the payment backend's Admin SDK (after verifying a real Razorpay signature), which
+    // bypasses these rules entirely. No client can create, edit, or delete an order directly -
+    // a customer can only read back their own, and only admin can update status or read all.
     match /orders/{orderId} {
-      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow create, update, delete: if isAdmin();
       allow read: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
-      allow update, delete: if isAdmin();
     }
 
     // Written only by the payment backend's Firebase Admin SDK (which bypasses these rules

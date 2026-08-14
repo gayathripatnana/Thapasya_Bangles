@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AddressPayload(BaseModel):
@@ -20,7 +20,7 @@ class OrderItemPayload(BaseModel):
     image: Optional[str] = ""
     selectedSize: Optional[str] = None
     price: float
-    quantity: int
+    quantity: int = Field(gt=0, le=100)
 
 
 class OrderDataPayload(BaseModel):
