@@ -31,21 +31,42 @@ export const createRazorpayOrder = async (orderData, idToken) => {
   return response.json();
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * Ask the backend to verify a completed payment's signature before trusting it.
+ *
+ * Retries on transient failures (network drop, backend 5xx) since this call
+ * happens right after the customer has actually paid - a lost connection here
+ * shouldn't fall straight back to "contact us" when a second attempt would
+ * likely just work. Does NOT retry a real rejection (4xx, e.g. invalid
+ * signature) - that won't change no matter how many times it's retried.
  */
-export const verifyRazorpayPayment = async (verificationData) => {
-  const response = await fetch(`${API_URL}/api/orders/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(verificationData)
-  });
+export const verifyRazorpayPayment = async (verificationData, maxAttempts = 3) => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let response;
+    try {
+      response = await fetch(`${API_URL}/api/orders/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(verificationData)
+      });
+    } catch (networkError) {
+      if (attempt === maxAttempts) throw networkError;
+      await sleep(1000 * attempt);
+      continue;
+    }
 
-  if (!response.ok) {
-    throw new Error(await parseErrorDetail(response));
+    if (response.ok) {
+      return response.json();
+    }
+
+    if (response.status < 500 || attempt === maxAttempts) {
+      throw new Error(await parseErrorDetail(response));
+    }
+
+    await sleep(1000 * attempt);
   }
-
-  return response.json();
 };
 
 /**

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 import razorpay.errors
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from config import (
     DEFAULT_PRODUCT_WEIGHT_KG,
@@ -10,6 +10,7 @@ from config import (
     RAZORPAY_KEY_ID,
 )
 from dependencies import get_current_uid
+from rate_limiter import limiter
 from schemas import (
     CreateOrderRequest,
     CreateOrderResponse,
@@ -43,13 +44,18 @@ def _compute_order_totals(order_data):
     if not order_data.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
+    # One batched read for every product instead of a sequential round-trip per
+    # cart line - matters once a cart has more than a couple of items.
+    product_refs = [db.collection("products").document(item.productId) for item in order_data.items]
+    products_by_id = {snap.id: snap for snap in db.get_all(product_refs)}
+
     subtotal = 0.0
     total_weight = 0.0
     priced_items = []
 
     for item in order_data.items:
-        product_snap = db.collection("products").document(item.productId).get()
-        if not product_snap.exists:
+        product_snap = products_by_id.get(item.productId)
+        if product_snap is None or not product_snap.exists:
             raise HTTPException(status_code=400, detail=f"Product {item.productId} no longer exists")
 
         product = product_snap.to_dict()
@@ -73,7 +79,8 @@ def _compute_order_totals(order_data):
 
 
 @router.post("/create", response_model=CreateOrderResponse)
-def create_order(payload: CreateOrderRequest, uid: str = Depends(get_current_uid)):
+@limiter.limit("10/minute")
+def create_order(request: Request, payload: CreateOrderRequest, uid: str = Depends(get_current_uid)):
     order_data = payload.order_data
 
     if order_data.customerId != uid:
@@ -151,8 +158,32 @@ def finalize_order(razorpay_order_id: str, razorpay_payment_id: str):
     return order_ref.id
 
 
+def mark_payment_failed(razorpay_order_id: str, payment_entity: dict):
+    """Record a failed payment attempt on its pending-payment record, for admin
+    visibility - no `orders` document is ever created for a failed payment, this
+    just keeps the "why did this checkout not go through" context from being lost.
+
+    No-op if the pending record is missing, or already fulfilled (a failure
+    notification arriving after a successful one - e.g. out-of-order webhook
+    delivery - must never overwrite a real, paid order's record).
+    """
+    pending_ref = db.collection("pending_payments").document(razorpay_order_id)
+    pending_snap = pending_ref.get()
+
+    if not pending_snap.exists or pending_snap.to_dict().get("status") == "fulfilled":
+        return
+
+    pending_ref.update({
+        "status": "failed",
+        "razorpayPaymentId": payment_entity.get("id"),
+        "failureReason": payment_entity.get("error_description") or payment_entity.get("error_reason") or "Unknown",
+        "failedAt": SERVER_TIMESTAMP,
+    })
+
+
 @router.post("/verify", response_model=VerifyPaymentResponse)
-def verify_payment(payload: VerifyPaymentRequest):
+@limiter.limit("20/minute")
+def verify_payment(request: Request, payload: VerifyPaymentRequest):
     try:
         client.utility.verify_payment_signature({
             "razorpay_order_id": payload.razorpay_order_id,
