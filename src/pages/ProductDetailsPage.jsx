@@ -107,6 +107,13 @@ const ProductDetailsPage = ({
     return { avg, count: reviews.length };
   }, [reviews]);
 
+  // Reset the quantity selector when navigating to a different product (e.g. via
+  // "Related Products") - this component doesn't remount between those, so without
+  // this a quantity chosen for one product would carry over to the next.
+  useEffect(() => {
+    setQuantity(1);
+  }, [processedProduct?.id]);
+
   const existingReviewIds = useMemo(() => new Set(reviews.map(r => r.id)), [reviews]);
 
   const reviewableOrder = useMemo(() => {
@@ -221,9 +228,15 @@ const productInCart = useMemo(() => {
   // Use multiple images if available, otherwise use single image
   const productImages = processedProduct.images;
 
+  // A finite `stock` caps how many of this product can be bought at once - unset/null
+  // stock means unlimited, so the pre-existing 10-per-order UX ceiling still applies.
+  const maxOrderQuantity = processedProduct.stock === null || processedProduct.stock === undefined
+    ? 10
+    : Math.max(0, Math.min(10, processedProduct.stock));
+
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
-    if (newQuantity >= 1 && newQuantity <= 10) {
+    if (newQuantity >= 1 && newQuantity <= maxOrderQuantity) {
       setQuantity(newQuantity);
     }
   };
@@ -523,7 +536,7 @@ Looking forward to your response! 🙏`;
                   </span>
                   <button
                     onClick={() => handleQuantityChange(1)}
-                    disabled={quantity >= 10}
+                    disabled={quantity >= maxOrderQuantity}
                     className="p-3 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-4 h-4" />
@@ -533,6 +546,9 @@ Looking forward to your response! 🙏`;
                   Total: ₹{totalPrice.toLocaleString()}
                 </div>
               </div>
+              {typeof processedProduct.stock === 'number' && processedProduct.stock > 0 && processedProduct.stock <= 5 && (
+                <p className="text-xs text-orange-600 mt-2">Only {processedProduct.stock} left in stock</p>
+              )}
             </div>
 
             {/* Size Selection */}

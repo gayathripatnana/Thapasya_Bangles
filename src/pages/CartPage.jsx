@@ -553,12 +553,16 @@ const CartPage = ({ cartItems, onUpdateQuantity, onRemoveItem, onBack, onProduct
                           </span>
                           <button
                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                            className="p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                            disabled={typeof item.stock === 'number' && item.quantity >= item.stock}
+                            className="p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             aria-label="Increase quantity"
                           >
                             <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                         </div>
+                        {typeof item.stock === 'number' && item.quantity >= item.stock && (
+                          <p className="text-xs text-orange-600">Max available: {item.stock}</p>
+                        )}
 
                         <p className="text-base sm:text-lg font-semibold text-gray-800">
                           ₹{(item.price * item.quantity).toLocaleString()}

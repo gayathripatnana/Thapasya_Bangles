@@ -21,3 +21,4 @@ if not firebase_admin._apps:
 db = firestore.client()
 fb_auth = auth
 SERVER_TIMESTAMP = firestore.SERVER_TIMESTAMP
+transactional = firestore.transactional

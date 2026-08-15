@@ -10,6 +10,7 @@ const ProductForm = ({ product, onSubmit, onCancel, categoryOptions = DEFAULT_CA
     name: '',
     price: '',
     weight: '',
+    stock: '',
     image: '',
     images: [],
     description: '',
@@ -88,6 +89,7 @@ const getGoogleDriveImageUrl = (url, size = 'preview') => {
         isFeatured: product.isFeatured || false,
         price: product.price.toString(),
         weight: product.weight ? product.weight.toString() : '',
+        stock: product.stock !== undefined && product.stock !== null ? product.stock.toString() : '',
         images: product.images || [product.image],
         sizes: product.sizes || ['2.0', '2.2', '2.4', '2.6', '2.8', '2.10', 'Children'],
         sizeChart: product.sizeChart || {
@@ -148,6 +150,10 @@ const validateForm = () => {
   if (formData.rating < 1 || formData.rating > 5) {
     newErrors.rating = 'Rating must be between 1 and 5';
   }
+
+  if (formData.stock !== '' && (!Number.isInteger(Number(formData.stock)) || Number(formData.stock) < 0)) {
+    newErrors.stock = 'Stock must be a whole number (0 or more), or left blank for unlimited';
+  }
   
   // REMOVE OR COMMENT OUT THIS VALIDATION BLOCK TO MAKE SIZES OPTIONAL:
   // if (!formData.sizes || formData.sizes.length === 0) {
@@ -172,6 +178,7 @@ const validateForm = () => {
         price: parseFloat(formData.price),
         rating: parseFloat(formData.rating),
         weight: formData.weight ? parseFloat(formData.weight) : null,
+        stock: formData.stock !== '' ? parseInt(formData.stock, 10) : null,
         image: formData.images[0] // Set first image as main image for backward compatibility
       };
       
@@ -182,6 +189,7 @@ const validateForm = () => {
           name: '',
           price: '',
           weight: '',
+          stock: '',
           image: '',
           images: [],
           description: '',
@@ -319,7 +327,35 @@ const validateForm = () => {
             />
             <p className="text-xs text-gray-500 mt-1">Used to calculate shipping. Defaults to 0.5kg if left blank.</p>
           </div>
-          
+
+          {/* Stock Quantity */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Stock Quantity
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={formData.stock}
+              onChange={(e) => handleInputChange('stock', e.target.value)}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                errors.stock
+                  ? 'border-red-500 focus:ring-red-500'
+                  : 'border-gray-300 focus:ring-yellow-500'
+              }`}
+              placeholder="Leave blank for unlimited"
+              disabled={isSubmitting}
+            />
+            {errors.stock ? (
+              <p className="text-red-500 text-sm mt-1">{errors.stock}</p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1">
+                Orders are capped at this many units, and it's marked Out of Stock automatically once it hits 0. Leave blank for unlimited stock.
+              </p>
+            )}
+          </div>
+
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

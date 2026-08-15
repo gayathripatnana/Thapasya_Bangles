@@ -17,7 +17,7 @@ from schemas import (
     VerifyPaymentRequest,
     VerifyPaymentResponse,
 )
-from services.firebase_client import SERVER_TIMESTAMP, db
+from services.firebase_client import SERVER_TIMESTAMP, db, transactional
 from services.razorpay_client import client
 
 router = APIRouter()
@@ -59,6 +59,19 @@ def _compute_order_totals(order_data):
             raise HTTPException(status_code=400, detail=f"Product {item.productId} no longer exists")
 
         product = product_snap.to_dict()
+        product_name = product.get("name", "This product")
+
+        if product.get("inStock") is False:
+            raise HTTPException(status_code=400, detail=f"{product_name} is out of stock")
+
+        # `stock` unset/None means unlimited - only a finite count is enforced.
+        stock = product.get("stock")
+        if stock is not None and item.quantity > stock:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Only {stock} unit(s) of {product_name} left in stock"
+            )
+
         real_price = float(product.get("price", 0))
         weight = float(product.get("weight") or DEFAULT_PRODUCT_WEIGHT_KG)
 
@@ -126,13 +139,9 @@ def create_order(request: Request, payload: CreateOrderRequest, uid: str = Depen
     return CreateOrderResponse(order_id=razorpay_order["id"], key_id=RAZORPAY_KEY_ID, amount=amount_paise)
 
 
-def finalize_order(razorpay_order_id: str, razorpay_payment_id: str):
-    """Create the real order document from the trusted pending-payment record.
-
-    Idempotent - safe to call from both /verify and the webhook, whichever fires first wins.
-    """
-    pending_ref = db.collection("pending_payments").document(razorpay_order_id)
-    pending_snap = pending_ref.get()
+@transactional
+def _finalize_order_txn(transaction, pending_ref, razorpay_order_id, razorpay_payment_id):
+    pending_snap = pending_ref.get(transaction=transaction)
 
     if not pending_snap.exists:
         return None
@@ -141,8 +150,16 @@ def finalize_order(razorpay_order_id: str, razorpay_payment_id: str):
     if pending_data.get("status") == "fulfilled":
         return pending_data.get("orderId")
 
+    order_data = pending_data["order_data"]
+    items = order_data.get("items", [])
+
+    # Firestore transactions require every read to happen before any write.
+    product_refs = [db.collection("products").document(item["productId"]) for item in items]
+    product_snaps = [ref.get(transaction=transaction) for ref in product_refs]
+
+    order_ref = db.collection("orders").document()
     order_doc = {
-        **pending_data["order_data"],
+        **order_data,
         "status": "Processing",
         "paymentStatus": "Paid",
         "paymentMethod": "Razorpay",
@@ -151,11 +168,43 @@ def finalize_order(razorpay_order_id: str, razorpay_payment_id: str):
         "orderDate": datetime.now(timezone.utc).isoformat(),
         "createdAt": SERVER_TIMESTAMP,
     }
+    transaction.set(order_ref, order_doc)
+    transaction.update(pending_ref, {"status": "fulfilled", "orderId": order_ref.id})
 
-    _, order_ref = db.collection("orders").add(order_doc)
-    pending_ref.update({"status": "fulfilled", "orderId": order_ref.id})
+    # Decrement stock for items that track a finite count, auto-flipping to
+    # out-of-stock at zero. Products with no `stock` field (unlimited) are
+    # untouched. Wrapping this in the same transaction as order creation means
+    # two customers racing for the last unit can never both succeed, and a
+    # webhook/verify race can never double-decrement the same sale.
+    for item, product_snap in zip(items, product_snaps):
+        if not product_snap.exists:
+            continue
+
+        stock = product_snap.to_dict().get("stock")
+        if stock is None:
+            continue
+
+        new_stock = max(0, stock - item["quantity"])
+        update = {"stock": new_stock}
+        if new_stock == 0:
+            update["inStock"] = False
+
+        transaction.update(product_snap.reference, update)
 
     return order_ref.id
+
+
+def finalize_order(razorpay_order_id: str, razorpay_payment_id: str):
+    """Create the real order document from the trusted pending-payment record,
+    and atomically decrement stock for any item that tracks a finite count.
+
+    Idempotent - safe to call from both /verify and the webhook, whichever fires
+    first wins - the whole thing runs as a single Firestore transaction so a
+    race between the two can never double-create an order or double-decrement stock.
+    """
+    pending_ref = db.collection("pending_payments").document(razorpay_order_id)
+    transaction = db.transaction()
+    return _finalize_order_txn(transaction, pending_ref, razorpay_order_id, razorpay_payment_id)
 
 
 def mark_payment_failed(razorpay_order_id: str, payment_entity: dict):
