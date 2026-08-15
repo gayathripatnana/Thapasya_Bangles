@@ -40,11 +40,10 @@ import {
 import { subscribeToCustomersUpdates } from './utils/customerHelpers';
 import { subscribeToStoreSettings, updateStoreSettings, DEFAULT_STORE_SETTINGS } from './utils/settingsHelpers';
 import { subscribeToShippingRates, updateShippingRates, DEFAULT_SHIPPING_SETTINGS } from './utils/shippingHelpers';
+import { getAuthErrorMessage } from './utils/authErrors';
 
 // Firebase Auth imports
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
+import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -292,7 +291,7 @@ useEffect(() => {
   };
 
   // Handle user login with Firebase Auth
-  const handleLogin = async (email, password, isGoogleAuth = false, googleUser = null) => {
+  const handleLogin = async (email, password, isGoogleAuth = false, authUser = null) => {
     try {
       let userData;
       let userUid;
@@ -300,22 +299,22 @@ useEffect(() => {
       if (isGoogleAuth) {
         // Google Auth - user data comes from Google
         userData = {
-          ...googleUser,
-          uid: googleUser.uid
+          ...authUser,
+          uid: authUser.uid
         };
-        userUid = googleUser.uid;
+        userUid = authUser.uid;
       } else {
-        // Email/password login
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const firebaseUser = userCredential.user;
-        
+        // Email/password login - LoginPage already authenticated via
+        // services/authService.js's loginWithEmail before calling onLogin and passed
+        // us the resulting Firebase user - signing in again here would just be a
+        // redundant network round-trip to Firebase Auth on every single login.
         userData = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || email.split('@')[0],
+          uid: authUser.uid,
+          email: authUser.email,
+          name: authUser.displayName || email.split('@')[0],
           isGoogleAuth: false
         };
-        userUid = firebaseUser.uid;
+        userUid = authUser.uid;
       }
 
       // Admin status comes from a server-set custom claim, not the email address
@@ -351,7 +350,7 @@ useEffect(() => {
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      showAlert('Login Failed', error.message, 'error');
+      showAlert('Login Failed', getAuthErrorMessage(error), 'error');
       return false;
     }
   };
@@ -368,14 +367,17 @@ useEffect(() => {
           uid: formData.uid
         };
       } else {
-        // Email/password registration
-        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        const firebaseUser = userCredential.user;
-
+        // Email/password registration - services/authService.js's registerWithEmail
+        // (called by RegisterPage before onRegister/handleRegister runs) already
+        // created this Firebase Auth account and its Firestore `users` doc. Calling
+        // createUserWithEmailAndPassword again here would always fail with
+        // auth/email-already-in-use, since the account now genuinely exists - even
+        // though registration had already succeeded moments earlier.
         userData = {
-          uid: firebaseUser.uid,
+          uid: formData.uid,
           name: formData.name,
           email: formData.email,
+          phone: formData.phone,
           isGoogleAuth: false
         };
       }
@@ -395,7 +397,7 @@ useEffect(() => {
       return true;
     } catch (error) {
       console.error('Registration error:', error);
-      showAlert('Registration Failed', error.message, 'error');
+      showAlert('Registration Failed', getAuthErrorMessage(error), 'error');
       return false;
     }
   };
